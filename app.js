@@ -178,31 +178,57 @@ function initSeedData() {
         const today = new Date().toISOString().slice(0, 10);
         const d = (days) => { const dt = new Date(); dt.setDate(dt.getDate() + days); return dt.toISOString().slice(0, 10); };
         const dp = (days) => { const dt = new Date(); dt.setDate(dt.getDate() - days); return dt.toISOString().slice(0, 10); };
-        saveData(STORAGE_KEYS.tasks, [
-            // Ўта муҳим
+        const role = _authUser.role || 'foydalanuvchi';
+
+        // Base tasks for all roles
+        const baseTasks = [
             { id: genId(), name: 'Йиллик ҳисобот тайёрлаш', priority: 'ota_muhim', category: 'Ish', status: 'jarayonda', deadline: d(2), time: '09:00', created: dp(5), note: 'Бош директорга тақдимот', createdBy: uid, assignedTo: uid, department: dept, startedAt: dp(2), isFocus: true },
             { id: genId(), name: 'GMP сертификати янгилаш', priority: 'ota_muhim', category: 'Ish', status: 'yangi', deadline: d(5), time: '10:00', created: dp(3), note: 'Ҳужжатлар тўплами тайёрланиши керак', createdBy: uid, assignedTo: uid, department: dept },
             { id: genId(), name: 'Тиббий экспертиза учун намуналар', priority: 'ota_muhim', category: 'Ish', status: 'tekshiruvda', deadline: d(1), time: '14:00', created: dp(7), note: '', createdBy: uid, assignedTo: uid, department: dept, submittedAt: dp(1) },
-            // Муҳим
             { id: genId(), name: 'Ходимлар тренинги режаси', priority: 'muhim', category: 'Ish', status: 'yangi', deadline: d(7), time: '11:00', created: dp(2), note: 'Янги тизим бўйича', createdBy: uid, assignedTo: uid, department: dept },
             { id: genId(), name: 'Маркетинг стратегия тақдимоти', priority: 'muhim', category: 'Ish', status: 'jarayonda', deadline: d(4), time: '15:00', created: dp(6), note: 'Q2 учун', createdBy: uid, assignedTo: uid, department: dept, startedAt: dp(3) },
             { id: genId(), name: 'Молиявий режани янгилаш', priority: 'muhim', category: 'Moliya', status: 'bajarildi', deadline: dp(2), time: '', created: dp(10), note: '', createdBy: uid, assignedTo: uid, department: dept, completedAt: dp(2) },
             { id: genId(), name: 'Инглиз тили курси 2-модул', priority: 'muhim', category: "O'qish", status: 'jarayonda', deadline: d(14), time: '19:00', created: dp(20), note: 'IELTS 7.0 мақсад', createdBy: uid, assignedTo: uid, department: dept, startedAt: dp(15) },
-            // Ўртача
             { id: genId(), name: 'Ҳафталик жамоа йиғилиши', priority: 'orta', category: 'Ish', status: 'yangi', deadline: d(1), time: '10:00', created: dp(1), note: 'Zoom орқали', createdBy: uid, assignedTo: uid, department: dept },
             { id: genId(), name: 'Веб-сайтни янгилаш', priority: 'orta', category: 'Ish', status: 'yangi', deadline: d(10), time: '', created: dp(4), note: 'Мобил версия', createdBy: uid, assignedTo: uid, department: dept },
             { id: genId(), name: 'Спортга ёзилиш', priority: 'orta', category: "Sog'liq", status: 'bajarildi', deadline: dp(5), time: '', created: dp(15), note: 'Сузиш ҳавзаси', createdBy: uid, assignedTo: uid, department: dept, completedAt: dp(5) },
             { id: genId(), name: '«Атомик одатлар» китобини ўқиш', priority: 'orta', category: "O'qish", status: 'jarayonda', deadline: d(21), time: '', created: dp(14), note: '150/320 саҳифа', createdBy: uid, assignedTo: uid, department: dept, startedAt: dp(10) },
             { id: genId(), name: 'Оилавий сафар режалаштириш', priority: 'orta', category: 'Oila', status: 'yangi', deadline: d(30), time: '', created: dp(2), note: 'Самарқанд, 3 кунлик', createdBy: uid, assignedTo: uid, department: dept },
-            // Паст
             { id: genId(), name: 'Иш столини тозалаш', priority: 'past', category: 'Shaxsiy', status: 'bajarildi', deadline: dp(1), time: '', created: dp(3), note: '', createdBy: uid, assignedTo: uid, department: dept, completedAt: dp(1) },
             { id: genId(), name: 'Янги рецептлар синаш', priority: 'past', category: 'Oila', status: 'yangi', deadline: d(15), time: '', created: dp(1), note: 'Италиян ошхона', createdBy: uid, assignedTo: uid, department: dept },
             { id: genId(), name: 'Фото архивни тартиблаш', priority: 'past', category: 'Shaxsiy', status: 'yangi', deadline: d(20), time: '', created: dp(5), note: '', createdBy: uid, assignedTo: uid, department: dept },
-            // Бажарилганлар (кўпроқ)
             { id: genId(), name: 'Q1 молиявий ҳисобот', priority: 'muhim', category: 'Moliya', status: 'bajarildi', deadline: dp(7), time: '16:00', created: dp(14), note: '', createdBy: uid, assignedTo: uid, department: dept, completedAt: dp(7) },
             { id: genId(), name: 'Лаборатория ускуналари текшируви', priority: 'ota_muhim', category: 'Ish', status: 'bajarildi', deadline: dp(3), time: '08:00', created: dp(10), note: 'Ҳаммаси нормал', createdBy: uid, assignedTo: uid, department: dept, completedAt: dp(3) },
             { id: genId(), name: 'Нотиқлик курси 1-дарс', priority: 'orta', category: "O'qish", status: 'bajarildi', deadline: dp(4), time: '18:00', created: dp(8), note: '', createdBy: uid, assignedTo: uid, department: dept, completedAt: dp(4) },
-        ]);
+        ];
+
+        // Role-specific tasks
+        const roleTasks = {
+            admin: [
+                { id: genId(), name: 'Тизим хавфсизлигини текшириш', priority: 'ota_muhim', category: 'Ish', status: 'yangi', deadline: d(3), time: '09:00', created: dp(1), note: 'SSL ва серверлар', createdBy: uid, assignedTo: uid, department: dept },
+                { id: genId(), name: 'Фойдаланувчилар ҳуқуқлари аудити', priority: 'muhim', category: 'Ish', status: 'jarayonda', deadline: d(5), time: '10:00', created: dp(3), note: 'Барча роллар', createdBy: uid, assignedTo: uid, department: dept, startedAt: dp(1) },
+            ],
+            rahbar: [
+                { id: genId(), name: 'Бўлим самарадорлик таҳлили', priority: 'ota_muhim', category: 'Ish', status: 'jarayonda', deadline: d(3), time: '09:00', created: dp(2), note: 'KPI кўрсаткичлар', createdBy: uid, assignedTo: uid, department: dept, startedAt: dp(1) },
+                { id: genId(), name: 'Янги ходимлар учун йўриқнома', priority: 'muhim', category: 'Ish', status: 'yangi', deadline: d(7), time: '', created: dp(1), note: 'Онлайн тренинг', createdBy: uid, assignedTo: uid, department: dept },
+            ],
+            ekspert: [
+                { id: genId(), name: 'Дори воситаси сифат экспертизаси', priority: 'ota_muhim', category: 'Ish', status: 'jarayonda', deadline: d(2), time: '09:00', created: dp(3), note: 'Серия №2024-887', createdBy: uid, assignedTo: uid, department: dept, startedAt: dp(1) },
+                { id: genId(), name: 'Фармакопея талаблари таҳлили', priority: 'muhim', category: 'Ish', status: 'yangi', deadline: d(5), time: '14:00', created: dp(1), note: 'Янги стандартлар', createdBy: uid, assignedTo: uid, department: dept },
+                { id: genId(), name: 'Экспертиза хулосаси ёзиш', priority: 'muhim', category: 'Ish', status: 'tekshiruvda', deadline: d(1), time: '', created: dp(5), note: 'Антибиотиклар серияси', createdBy: uid, assignedTo: uid, department: dept, submittedAt: dp(1) },
+            ],
+            ishchi: [
+                { id: genId(), name: 'Лаборатория тажрибалари', priority: 'ota_muhim', category: 'Ish', status: 'jarayonda', deadline: d(1), time: '08:00', created: dp(2), note: 'Кимёвий таҳлиллар', createdBy: uid, assignedTo: uid, department: dept, startedAt: dp(1) },
+                { id: genId(), name: 'Ишлаб чиқариш ҳисоботи', priority: 'muhim', category: 'Ish', status: 'yangi', deadline: d(3), time: '16:00', created: dp(1), note: 'Кунлик натижалар', createdBy: uid, assignedTo: uid, department: dept },
+                { id: genId(), name: 'Ускуналар калибровкаси', priority: 'orta', category: 'Ish', status: 'yangi', deadline: d(7), time: '', created: dp(2), note: 'HPLC ва спектрофотометр', createdBy: uid, assignedTo: uid, department: dept },
+            ],
+            foydalanuvchi: [
+                { id: genId(), name: 'Тизимни ўрганиш', priority: 'muhim', category: "O'qish", status: 'jarayonda', deadline: d(5), time: '', created: dp(1), note: 'Барча функцияларни синаш', createdBy: uid, assignedTo: uid, department: dept, startedAt: dp(0) },
+                { id: genId(), name: 'Профилни тўлдириш', priority: 'orta', category: 'Shaxsiy', status: 'yangi', deadline: d(3), time: '', created: dp(0), note: 'Расм ва маълумотлар', createdBy: uid, assignedTo: uid, department: dept },
+            ]
+        };
+
+        saveData(STORAGE_KEYS.tasks, [...baseTasks, ...(roleTasks[role] || roleTasks.foydalanuvchi)]);
     }
 
     // Rich productivity data — 7 days of history for guests

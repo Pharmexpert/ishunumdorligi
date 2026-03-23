@@ -12,3 +12,5 @@ uploads/
 .env*.local
 .env.production
 .env.vercel
+.gemini/
+chat_files/

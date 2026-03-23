@@ -15,20 +15,23 @@ function saveData(key, data) {
     syncKeyToServer(key, data);
 }
 
-// Server sync helpers
-let _syncTimeout = null;
+// Server sync helpers — improved persistence
+let _syncTimers = {}; // per-key debounce
+let _pendingSync = {};
 function syncKeyToServer(key, value) {
     const token = localStorage.getItem('hb_token');
     if (!token) return;
-    // Debounce: wait 500ms before sending to avoid rapid fires
-    clearTimeout(_syncTimeout);
-    _syncTimeout = setTimeout(() => {
+    _pendingSync[key] = value;
+    // Per-key debounce: 200ms
+    clearTimeout(_syncTimers[key]);
+    _syncTimers[key] = setTimeout(() => {
         fetch('/api/user/data', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
             body: JSON.stringify({ key, value })
-        }).catch(e => console.warn('Sync error:', e.message));
-    }, 500);
+        }).then(() => { delete _pendingSync[key]; })
+            .catch(e => console.warn('Sync error:', e.message));
+    }, 200);
 }
 
 async function syncFromServer() {
@@ -52,6 +55,72 @@ async function syncFromServer() {
     } catch (e) {
         console.warn('Server sync failed:', e.message);
     }
+}
+
+// Flush all pending syncs immediately
+function flushPendingSync() {
+    const token = localStorage.getItem('hb_token');
+    if (!token || isGuest(_authUser)) return;
+    const keys = Object.keys(_pendingSync);
+    if (!keys.length) return;
+    // Use sendBeacon for reliability during page unload
+    const payload = {};
+    keys.forEach(k => { payload[k] = _pendingSync[k]; });
+    const blob = new Blob([JSON.stringify({ data: payload })], { type: 'application/json' });
+    navigator.sendBeacon('/api/user/data/bulk?token=' + token, blob);
+    _pendingSync = {};
+}
+
+// Periodic auto-sync every 30 seconds
+setInterval(() => {
+    if (isGuest(_authUser)) return;
+    syncAllToServer();
+}, 30000);
+
+// Save before leaving page
+window.addEventListener('beforeunload', () => {
+    flushPendingSync();
+});
+
+// Sync when returning to tab
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && !isGuest(_authUser)) {
+        syncFromServer();
+    } else if (document.visibilityState === 'hidden' && !isGuest(_authUser)) {
+        flushPendingSync();
+    }
+});
+
+// Action history for rollback
+function saveActionHistory(actionName) {
+    try {
+        const history = JSON.parse(localStorage.getItem('_actionHistory') || '[]');
+        const snapshot = {};
+        Object.keys(STORAGE_KEYS).forEach(k => {
+            const sk = STORAGE_KEYS[k];
+            try { snapshot[sk] = JSON.parse(localStorage.getItem(sk)); } catch { }
+        });
+        history.push({
+            action: actionName,
+            timestamp: new Date().toISOString(),
+            data: snapshot
+        });
+        // Keep last 50 actions
+        if (history.length > 50) history.splice(0, history.length - 50);
+        localStorage.setItem('_actionHistory', JSON.stringify(history));
+    } catch (e) { console.warn('History save error:', e.message); }
+}
+function restoreFromHistory(index) {
+    try {
+        const history = JSON.parse(localStorage.getItem('_actionHistory') || '[]');
+        if (index < 0 || index >= history.length) return false;
+        const snapshot = history[index].data;
+        Object.keys(snapshot).forEach(k => {
+            localStorage.setItem(k, JSON.stringify(snapshot[k]));
+        });
+        syncAllToServer();
+        return true;
+    } catch { return false; }
 }
 
 async function syncAllToServer() {

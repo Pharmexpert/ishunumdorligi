@@ -134,10 +134,15 @@ function rateLimit(key, max = 10, windowMs = 60000) {
 
 function authMiddleware(req, res, next) {
     const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer '))
-        return res.status(401).json({ error: 'Авторизация талаб қилинади' });
+    // Support both header and query param (for sendBeacon)
+    let token = null;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        token = authHeader.split(' ')[1];
+    } else if (req.query.token) {
+        token = req.query.token;
+    }
+    if (!token) return res.status(401).json({ error: 'Авторизация талаб қилинади' });
     try {
-        const token = authHeader.split(' ')[1];
         const decoded = jwt.verify(token, JWT_SECRET);
         db = loadDB();
         const user = db.users.find(u => u.id === decoded.userId);
@@ -692,6 +697,19 @@ app.put('/api/user/data/bulk', authMiddleware, (req, res) => {
     res.json({ success: true });
 });
 
+// POST version for sendBeacon (sendBeacon can only POST)
+app.post('/api/user/data/bulk', authMiddleware, (req, res) => {
+    const { data } = req.body;
+    if (!data || typeof data !== 'object') return res.status(400).json({ error: 'data majburiy' });
+    db = loadDB();
+    if (!db.user_data) db.user_data = {};
+    if (!db.user_data[req.user.id]) db.user_data[req.user.id] = {};
+    Object.assign(db.user_data[req.user.id], data);
+    db.user_data[req.user.id]._lastUpdated = new Date().toISOString();
+    saveDB(db);
+    res.json({ success: true });
+});
+
 // Shared data (tasks, ideas etc shared within department)
 app.get('/api/shared/data', authMiddleware, (req, res) => {
     db = loadDB();
@@ -1092,7 +1110,7 @@ app.delete('/api/profile/folder-files/:folderName/:fileId', authMiddleware, (req
         // Delete physical file
         if (removed.savedName) {
             const filePath = path.join(uploadDir, removed.savedName);
-            fs.unlink(filePath, () => {});
+            fs.unlink(filePath, () => { });
         }
         saveDB(db);
         res.json({ success: true });

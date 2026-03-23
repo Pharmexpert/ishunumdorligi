@@ -923,22 +923,40 @@ function deleteLibFile(fileName) {
     showToast('🗑 Файл ўчирилди');
     renderGoogleDrive();
 }
-function downloadLibFileFromDrive(fileName) {
+async function downloadLibFileFromDrive(fileName) {
     const token = getJwtToken();
-    if (!token) return;
+    if (!token) { showToast('⚠️ Авторизация керак', 'error'); return; }
     showToast(`⬇️ ${fileName} юкланмоқда...`);
-    fetch('/api/lib/download/' + encodeURIComponent(fileName), {
-        headers: { 'Authorization': 'Bearer ' + token }
-    }).then(res => {
-        if (!res.ok) { showToast('⚠️ Файл серверда мавжуд эмас', 'error'); return; }
-        return res.blob();
-    }).then(blob => {
-        if (!blob) return;
+    try {
+        const res = await fetch('/api/lib/download/' + encodeURIComponent(fileName), {
+            headers: { 'Authorization': 'Bearer ' + token }
+        });
+        const ct = res.headers.get('content-type') || '';
+        if (!res.ok || ct.includes('application/json')) {
+            showToast('⚠️ Файл серверда мавжуд эмас. Маҳаллий серверда ишлатинг.', 'error');
+            return;
+        }
+        const blob = await res.blob();
         const url = URL.createObjectURL(blob);
-        const a = document.createElement('a'); a.href = url; a.download = fileName; a.click();
+        const a = document.createElement('a');
+        a.href = url; a.download = fileName; a.click();
         URL.revokeObjectURL(url);
         showToast(`✅ ${fileName} юклаб олинди`);
-    }).catch(() => showToast('⚠️ Юклаб олишда хато', 'error'));
+    } catch {
+        showToast('⚠️ Юклаб олишда хато', 'error');
+    }
+}
+
+function shareLibFileToChat(fileName) {
+    // Send file info as a message to chat (similar to driveShareToChat)
+    if (typeof chatSendFileRef !== 'undefined') {
+        chatSendFileRef(fileName, 'lib');
+    } else {
+        // Fallback: copy file name to clipboard
+        navigator.clipboard.writeText(fileName).then(() => {
+            showToast(`📋 "${fileName}" нусхаланди`);
+        }).catch(() => showToast(`📄 ${fileName}`));
+    }
 }
 
 function _fmtSize(b) {
@@ -1082,6 +1100,9 @@ function showFileContextMenu(event, fileName, fileSize) {
         ${moveHtml}
         <button onclick="downloadLibFileFromDrive('${esc}');document.getElementById('fileContextMenu')?.remove()" style="display:flex;align-items:center;gap:8px;width:100%;background:none;border:none;padding:8px 12px;cursor:pointer;border-radius:6px;font-size:0.85rem;color:var(--text-primary);text-align:left" onmouseover="this.style.background='rgba(180,140,100,0.1)'" onmouseout="this.style.background='none'">
             ⬇️ Юклаб олиш
+        </button>
+        <button onclick="shareLibFileToChat('${esc}');document.getElementById('fileContextMenu')?.remove()" style="display:flex;align-items:center;gap:8px;width:100%;background:none;border:none;padding:8px 12px;cursor:pointer;border-radius:6px;font-size:0.85rem;color:var(--text-primary);text-align:left" onmouseover="this.style.background='rgba(180,140,100,0.1)'" onmouseout="this.style.background='none'">
+            📤 Чатга юбориш
         </button>
         <button onclick="deleteLibFile('${esc}');document.getElementById('fileContextMenu')?.remove()" style="display:flex;align-items:center;gap:8px;width:100%;background:none;border:none;padding:8px 12px;cursor:pointer;border-radius:6px;font-size:0.85rem;color:var(--danger);text-align:left" onmouseover="this.style.background='rgba(220,50,50,0.05)'" onmouseout="this.style.background='none'">
             🗑 Ўчириш

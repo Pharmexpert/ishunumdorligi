@@ -952,10 +952,188 @@ function _fmtIcon(name) {
     if (ext === 'pdf') return '📕';
     if (['doc', 'docx'].includes(ext)) return '📝';
     if (['xls', 'xlsx'].includes(ext)) return '📊';
+    if (['jpg', 'jpeg', 'png', 'gif'].includes(ext)) return '🖼️';
     return '📄';
 }
 
+// Folder file storage in localStorage
+function _getProfileFolderFiles() {
+    try { return JSON.parse(localStorage.getItem('_profileFolderFiles') || '{}'); }
+    catch { return {}; }
+}
+function _saveProfileFolderFiles(d) { localStorage.setItem('_profileFolderFiles', JSON.stringify(d)); }
+
+// Current open folder state
+let _openProfileFolderId = null;
+let _openProfileFolderName = null;
+
+function openProfileFolder(folderId, folderName) {
+    _openProfileFolderId = folderId;
+    _openProfileFolderName = folderName;
+    _renderProfileFolderView();
+}
+
+function backToFileManager() {
+    _openProfileFolderId = null;
+    _openProfileFolderName = null;
+    renderGoogleDrive();
+}
+
+function _renderProfileFolderView() {
+    const grid = document.getElementById('driveFilesGrid');
+    const status = document.getElementById('driveStatus');
+    if (!grid) return;
+
+    const folderFiles = _getProfileFolderFiles();
+    const files = folderFiles[_openProfileFolderId] || [];
+    const folder = _defaultProfileFolders.find(f => f.id === _openProfileFolderId);
+
+    let html = `<div style="margin-bottom:12px;display:flex;align-items:center;gap:8px">
+        <button onclick="backToFileManager()" style="background:var(--accent-primary);color:white;border:none;border-radius:8px;padding:6px 14px;cursor:pointer;font-weight:600;font-size:0.85rem">⬅ Орқага</button>
+        <span style="font-size:1.2rem">${folder ? folder.icon : '📁'}</span>
+        <span style="font-weight:600;color:var(--text-primary)">${_openProfileFolderName}</span>
+        <span style="color:var(--text-muted);font-size:0.82rem">(${files.length} файл)</span>
+    </div>`;
+
+    // Drop zone
+    html += `<div id="folderDropZone" 
+        ondragover="event.preventDefault();this.style.background='rgba(192,120,64,0.1)';this.style.borderColor='var(--accent-primary)'" 
+        ondragleave="this.style.background='';this.style.borderColor='rgba(180,140,100,0.2)'"
+        ondrop="handleFolderDrop(event,'${_openProfileFolderId}')"
+        style="border:2px dashed rgba(180,140,100,0.2);border-radius:12px;padding:20px;text-align:center;margin-bottom:12px;transition:all 0.2s">
+        <span style="color:var(--text-muted);font-size:0.85rem">📎 Файлларни бу ерга тортиб ташланг ёки кутубхонадан кўчиринг</span>
+    </div>`;
+
+    if (files.length === 0) {
+        html += '<div style="text-align:center;padding:40px;color:var(--text-muted)"><div style="font-size:2.5rem;margin-bottom:8px">📂</div><p>Бу папка бўш</p><p style="font-size:0.82rem">Кутубхона файлларидан кўчириш ёки тортиб ташлаш мумкин</p></div>';
+    } else {
+        files.forEach((f, i) => {
+            const esc = f.name.replace(/'/g, "\\'");
+            html += `<div class="drive-file-card" style="border-left:3px solid var(--accent-primary)">
+                <div class="drive-file-icon" style="font-size:1.5rem">${_fmtIcon(f.name)}</div>
+                <div class="drive-file-info">
+                    <div class="drive-file-name" title="${f.name}">${f.name}</div>
+                    <div class="drive-file-meta">${_fmtSize(f.size)}</div>
+                </div>
+                <div class="drive-file-actions" onclick="event.stopPropagation()">
+                    <button class="btn-sm" onclick="downloadLibFileFromDrive('${esc}')" title="Юклаб олиш">⬇️</button>
+                    <button class="btn-sm btn-danger" onclick="removeFileFromFolder('${_openProfileFolderId}',${i})" title="Папкадан олиб ташлаш">🗑</button>
+                </div>
+            </div>`;
+        });
+    }
+
+    grid.innerHTML = html;
+    if (status) status.innerHTML = `<div style="font-size:0.78rem;color:var(--text-muted);padding:4px 0">📊 ${files.length} файл</div>`;
+}
+
+function moveFileToFolder(fileName, fileSize, folderId) {
+    const folderFiles = _getProfileFolderFiles();
+    if (!folderFiles[folderId]) folderFiles[folderId] = [];
+    // Check if already in folder
+    if (folderFiles[folderId].some(f => f.name === fileName)) {
+        showToast('⚠️ Бу файл аллақачон папкада', 'error');
+        return;
+    }
+    folderFiles[folderId].push({ name: fileName, size: fileSize, addedAt: new Date().toISOString() });
+    _saveProfileFolderFiles(folderFiles);
+    const folder = _defaultProfileFolders.find(f => f.id === folderId);
+    showToast(`📁 "${fileName}" → ${folder ? folder.name : 'Папка'}`);
+    // Close context menu
+    const menu = document.getElementById('fileContextMenu');
+    if (menu) menu.remove();
+    renderGoogleDrive();
+}
+
+function removeFileFromFolder(folderId, index) {
+    const folderFiles = _getProfileFolderFiles();
+    if (!folderFiles[folderId]) return;
+    const removed = folderFiles[folderId].splice(index, 1);
+    _saveProfileFolderFiles(folderFiles);
+    showToast(`🗑 Файл папкадан олиб ташланди`);
+    _renderProfileFolderView();
+}
+
+function showFileContextMenu(event, fileName, fileSize) {
+    event.stopPropagation();
+    // Remove old menu
+    const old = document.getElementById('fileContextMenu');
+    if (old) old.remove();
+
+    const deleted = _getDeletedItems();
+    const activeFolders = _defaultProfileFolders.filter(f => !deleted.folders.includes(f.id));
+    const esc = fileName.replace(/'/g, "\\'");
+
+    let moveHtml = '';
+    if (activeFolders.length > 0) {
+        moveHtml = activeFolders.map(f => {
+            const fesc = f.name.replace(/'/g, "\\'");
+            return `<button onclick="moveFileToFolder('${esc}',${fileSize},'${f.id}')" style="display:flex;align-items:center;gap:8px;width:100%;background:none;border:none;padding:8px 12px;cursor:pointer;border-radius:6px;font-size:0.85rem;color:var(--text-primary);text-align:left" onmouseover="this.style.background='rgba(180,140,100,0.1)'" onmouseout="this.style.background='none'">
+                <span>${f.icon}</span> ${f.name}
+            </button>`;
+        }).join('');
+        moveHtml = `<div style="padding:4px 12px 2px;font-size:0.72rem;font-weight:600;color:var(--text-muted);text-transform:uppercase">Папкага кўчириш</div>${moveHtml}<div style="border-top:1px solid rgba(180,140,100,0.1);margin:4px 0"></div>`;
+    }
+
+    const menu = document.createElement('div');
+    menu.id = 'fileContextMenu';
+    menu.style.cssText = 'position:fixed;z-index:10000;background:var(--card-bg,#FFFBF5);border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.15);padding:6px 0;min-width:220px;animation:fadeInUp 0.15s ease';
+    menu.innerHTML = `
+        ${moveHtml}
+        <button onclick="downloadLibFileFromDrive('${esc}');document.getElementById('fileContextMenu')?.remove()" style="display:flex;align-items:center;gap:8px;width:100%;background:none;border:none;padding:8px 12px;cursor:pointer;border-radius:6px;font-size:0.85rem;color:var(--text-primary);text-align:left" onmouseover="this.style.background='rgba(180,140,100,0.1)'" onmouseout="this.style.background='none'">
+            ⬇️ Юклаб олиш
+        </button>
+        <button onclick="deleteLibFile('${esc}');document.getElementById('fileContextMenu')?.remove()" style="display:flex;align-items:center;gap:8px;width:100%;background:none;border:none;padding:8px 12px;cursor:pointer;border-radius:6px;font-size:0.85rem;color:var(--danger);text-align:left" onmouseover="this.style.background='rgba(220,50,50,0.05)'" onmouseout="this.style.background='none'">
+            🗑 Ўчириш
+        </button>`;
+
+    // Position near click
+    const x = Math.min(event.clientX, window.innerWidth - 240);
+    const y = Math.min(event.clientY, window.innerHeight - 250);
+    menu.style.left = x + 'px';
+    menu.style.top = y + 'px';
+
+    document.body.appendChild(menu);
+    // Close on outside click
+    setTimeout(() => {
+        document.addEventListener('click', function _cl() {
+            const m = document.getElementById('fileContextMenu');
+            if (m) m.remove();
+            document.removeEventListener('click', _cl);
+        });
+    }, 100);
+}
+
+// Drag and drop support
+function handleFolderDrop(event, folderId) {
+    event.preventDefault();
+    event.currentTarget.style.background = '';
+    event.currentTarget.style.borderColor = 'rgba(180,140,100,0.2)';
+    try {
+        const data = JSON.parse(event.dataTransfer.getData('text/plain'));
+        if (data.type === 'libFile') {
+            moveFileToFolder(data.name, data.size, folderId);
+        }
+    } catch (e) { }
+}
+function handleFolderCardDrop(event, folderId) {
+    event.preventDefault();
+    event.currentTarget.style.transform = '';
+    event.currentTarget.style.boxShadow = '';
+    try {
+        const data = JSON.parse(event.dataTransfer.getData('text/plain'));
+        if (data.type === 'libFile') {
+            moveFileToFolder(data.name, data.size, folderId);
+        }
+    } catch (e) { }
+}
+
 async function renderGoogleDrive() {
+    // If a profile folder is open, render folder view instead
+    if (_openProfileFolderId) {
+        _renderProfileFolderView();
+        return;
+    }
     const grid = document.getElementById('driveFilesGrid');
     const status = document.getElementById('driveStatus');
     if (!grid) return;
@@ -971,13 +1149,15 @@ async function renderGoogleDrive() {
         const activeFolders = _defaultProfileFolders.filter(f => !deleted.folders.includes(f.id));
         if (activeFolders.length > 0) {
             profileHtml += '<div style="margin-bottom:8px;padding:4px 8px"><span style="font-size:0.78rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px">📁 Ҳужжатлар папкалари</span></div>';
+            const folderFiles = _getProfileFolderFiles();
             activeFolders.forEach(f => {
                 const esc = f.name.replace(/'/g, "\\'");
-                profileHtml += `<div class="drive-file-card drive-folder" style="border-left:3px solid var(--accent-primary)">
+                const fCount = (folderFiles[f.id] || []).length;
+                profileHtml += `<div class="drive-file-card drive-folder" style="border-left:3px solid var(--accent-primary);cursor:pointer" onclick="openProfileFolder('${f.id}','${esc}')" ondragover="event.preventDefault();this.style.transform='scale(1.02)';this.style.boxShadow='0 4px 16px rgba(192,120,64,0.3)'" ondragleave="this.style.transform='';this.style.boxShadow=''" ondrop="handleFolderCardDrop(event,'${f.id}')">
                     <div class="drive-file-icon" style="font-size:1.8rem">${f.icon}</div>
                     <div class="drive-file-info">
                         <div class="drive-file-name" title="${f.name}">${f.name}</div>
-                        <div class="drive-file-meta">${f.desc}</div>
+                        <div class="drive-file-meta">${f.desc}${fCount > 0 ? ' · ' + fCount + ' файл' : ''}</div>
                     </div>
                     <div class="drive-file-actions" onclick="event.stopPropagation()">
                         <button class="btn-sm btn-danger" onclick="deleteDefaultFolder('${f.id}','${esc}')" title="Ўчириш">🗑</button>
@@ -992,15 +1172,15 @@ async function renderGoogleDrive() {
             profileHtml += '<div style="margin:12px 0 8px;padding:4px 8px"><span style="font-size:0.78rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px">📚 Кутубхона файллари (' + activeLibFiles.length + ')</span></div>';
             activeLibFiles.forEach(f => {
                 const esc = f.name.replace(/'/g, "\\'");
-                profileHtml += `<div class="drive-file-card" style="border-left:3px solid #4A7FBF">
+                profileHtml += `<div class="drive-file-card" style="border-left:3px solid #4A7FBF;cursor:pointer" onclick="showFileContextMenu(event,'${esc}',${f.size})" draggable="true" ondragstart="event.dataTransfer.setData('text/plain',JSON.stringify({type:'libFile',name:'${esc}',size:${f.size}}))">
                     <div class="drive-file-icon" style="font-size:1.5rem">${_fmtIcon(f.name)}</div>
                     <div class="drive-file-info">
                         <div class="drive-file-name" title="${f.name}">${f.name}</div>
                         <div class="drive-file-meta">${_fmtSize(f.size)}</div>
                     </div>
                     <div class="drive-file-actions" onclick="event.stopPropagation()">
-                        <button class="btn-sm" onclick="downloadLibFileFromDrive('${esc}')" title="Юклаб олиш">⬇️</button>
-                        <button class="btn-sm btn-danger" onclick="deleteLibFile('${esc}')" title="Ўчириш">🗑</button>
+                        <button class="btn-sm" onclick="event.stopPropagation();downloadLibFileFromDrive('${esc}')" title="Юклаб олиш">⬇️</button>
+                        <button class="btn-sm btn-danger" onclick="event.stopPropagation();deleteLibFile('${esc}')" title="Ўчириш">🗑</button>
                     </div>
                 </div>`;
             });

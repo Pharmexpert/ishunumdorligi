@@ -1134,7 +1134,8 @@ app.post('/api/drive/upload', authMiddleware, upload.single('file'), (req, res) 
             parentId: folderId,
             uploadedBy: req.user.id,
             modifiedTime: new Date().toISOString(),
-            deleted: false
+            deleted: false,
+            googleFileId: null
         };
 
         const files = getDriveFiles();
@@ -1143,6 +1144,52 @@ app.post('/api/drive/upload', authMiddleware, upload.single('file'), (req, res) 
         logDriveActivity(req.user.id, req.user.name, 'upload', fileEntry.name, fileEntry.id);
 
         res.json({ success: true, file: { id: fileEntry.id, name: fileEntry.name, mimeType: fileEntry.mimeType, size: fileEntry.size } });
+
+        // Auto-upload to Google Drive in background (async, non-blocking)
+        // This ensures the file is preserved even after Vercel /tmp is cleared
+        if (gDriveAuthorized && gOAuth2Client) {
+            (async () => {
+                try {
+                    const drive = google.drive({ version: 'v3', auth: gOAuth2Client });
+
+                    // Convert Office files to Google format
+                    const convertMap = {
+                        'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'application/vnd.google-apps.document',
+                        'application/msword': 'application/vnd.google-apps.document',
+                        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'application/vnd.google-apps.spreadsheet',
+                        'application/vnd.ms-excel': 'application/vnd.google-apps.spreadsheet',
+                        'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'application/vnd.google-apps.presentation',
+                        'application/vnd.ms-powerpoint': 'application/vnd.google-apps.presentation',
+                    };
+                    const googleMimeType = convertMap[fileEntry.mimeType] || null;
+                    const requestBody = { name: fileEntry.name, parents: [GOOGLE_DRIVE_FOLDER_ID] };
+                    if (googleMimeType) requestBody.mimeType = googleMimeType;
+
+                    const response = await drive.files.create({
+                        requestBody,
+                        media: { mimeType: fileEntry.mimeType, body: fs.createReadStream(destPath) },
+                        fields: 'id'
+                    });
+
+                    // Make accessible
+                    await drive.permissions.create({
+                        fileId: response.data.id,
+                        requestBody: { role: 'writer', type: 'anyone' }
+                    });
+
+                    // Save Google file ID
+                    const currentFiles = getDriveFiles();
+                    const entry = currentFiles.find(f => f.id === fileEntry.id);
+                    if (entry) {
+                        entry.googleFileId = response.data.id;
+                        saveDriveFiles(currentFiles);
+                    }
+                    console.log(`☁️ Auto-uploaded to Google Drive: ${fileEntry.name} → ${response.data.id}`);
+                } catch (e) {
+                    console.warn('Auto-upload to Google Drive failed:', e.message);
+                }
+            })();
+        }
     } catch (err) {
         console.error('File upload error:', err.message);
         res.status(500).json({ error: 'Юклашда хато: ' + err.message });

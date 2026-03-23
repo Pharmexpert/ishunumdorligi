@@ -329,8 +329,8 @@ function isRahbar(user) { return user && user.role === 'rahbar'; }
 function isEkspert(user) { return user && user.role === 'ekspert'; }
 function isIshchi(user) { return user && user.role === 'ishchi'; }
 function canDelegate(user) { return user && (user.role === 'admin' || user.role === 'rahbar'); }
-function canCreateTasks(user) { return user && user.role !== 'foydalanuvchi'; }
-function canViewFinance(user) { return user && ['admin', 'rahbar', 'ekspert', 'ishchi'].includes(user.role); }
+function canCreateTasks(user) { return !!user; }
+function canViewFinance(user) { return !!user; }
 function canViewAllTeam(user) { return user && (user.role === 'admin' || user.role === 'rahbar'); }
 function canAccessAdmin(user) { return user && user.role === 'admin'; }
 function canEditSettings(user) { return user && (user.role === 'admin' || user.role === 'rahbar'); }

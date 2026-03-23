@@ -1141,7 +1141,17 @@ async function driveOpenInGoogle(fileId, name) {
         const data = await res.json();
         if (data.success && data.url) {
             window.open(data.url, '_blank');
-            showToast(`✅ ${name} Google Drive да очилди`);
+            if (data.mode === 'google_drive') {
+                showToast(`✅ ${name} Google Docs да очилди ${data.converted ? '(конвертация қилинди)' : ''}`);
+            } else if (data.mode === 'office_viewer') {
+                showToast(`📄 ${name} Office Viewer да очилди`);
+            } else if (data.mode === 'cached') {
+                showToast(`✅ ${name} Google Docs да очилди`);
+            } else {
+                showToast(`📄 ${name} кўриш режимида очилди`);
+            }
+        } else if (data.needsReupload) {
+            showToast('⚠️ Файл серверда топилмади. Файлни қайтадан юкланг.', 'error');
         } else {
             showToast('❌ ' + (data.error || 'Хато'), 'error');
         }

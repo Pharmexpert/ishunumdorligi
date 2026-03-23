@@ -878,6 +878,83 @@ function renderTeamReport(c) {
 let _driveCurrentFolder = 'root';
 let _driveBreadcrumbs = [{ id: 'root', name: 'Drive' }];
 
+// Default folders and Lib files for File Manager
+const _defaultProfileFolders = [
+    { id: 'pf_qonunchilik', name: 'Қонунчилик ҳужжатлари', icon: '📜', desc: 'Қонунлар ва меъёрий ҳужжатлар' },
+    { id: 'pf_mutaxassislik', name: 'Мутахассисликка оид', icon: '🔬', desc: 'Касбий ҳужжатлар ва маълумотнома' },
+    { id: 'pf_ekspertiza', name: 'Экспертиза жараёнига оид', icon: '📋', desc: 'Экспертиза натижалари ва ҳисоботлар' }
+];
+const _libFiles = [
+    { name: '738-VMQ.pdf', size: 6036429 },
+    { name: '3738-SSV.pdf', size: 1157634 },
+    { name: '3744-SSV.pdf', size: 892426 },
+    { name: '399-O\'RQ.pdf', size: 202151 },
+    { name: 'Tib qonunlari (1-jild).pdf', size: 14237901 },
+    { name: 'Tib qonunlari (2-jild).pdf', size: 16319747 },
+    { name: 'Tib qonunlari (3-jild).pdf', size: 16644985 },
+    { name: 'Tib qonunlari (4-jild).pdf', size: 21116187 },
+    { name: '3738 30.12.2025.doc', size: 52092 },
+    { name: '3744 05.01.2026.doc', size: 24929 },
+    { name: '738 24.11.2025.doc', size: 899920 },
+    { name: 'ЎРҚ-399 04.01.2016.doc', size: 101616 },
+    { name: 'Ибодов А. Фармацевтик кимё. 1 т..pdf', size: 9266298 },
+    { name: 'Ибодов_А_Ю_Фармацевтик_кимё_1_қисм.pdf', size: 18646136 }
+];
+
+function _getDeletedItems() {
+    try { return JSON.parse(localStorage.getItem('_deletedProfileItems') || '{"folders":[],"files":[]}'); }
+    catch { return { folders: [], files: [] }; }
+}
+function _saveDeletedItems(d) { localStorage.setItem('_deletedProfileItems', JSON.stringify(d)); }
+
+function deleteDefaultFolder(folderId, name) {
+    if (!confirm(`"${name}" папкасини ўчирасизми?`)) return;
+    const d = _getDeletedItems();
+    if (!d.folders.includes(folderId)) d.folders.push(folderId);
+    _saveDeletedItems(d);
+    showToast('🗑 Папка ўчирилди');
+    renderGoogleDrive();
+}
+function deleteLibFile(fileName) {
+    if (!confirm(`"${fileName}" файлини ўчирасизми?`)) return;
+    const d = _getDeletedItems();
+    if (!d.files.includes(fileName)) d.files.push(fileName);
+    _saveDeletedItems(d);
+    showToast('🗑 Файл ўчирилди');
+    renderGoogleDrive();
+}
+function downloadLibFileFromDrive(fileName) {
+    const token = getJwtToken();
+    if (!token) return;
+    showToast(`⬇️ ${fileName} юкланмоқда...`);
+    fetch('/api/lib/download/' + encodeURIComponent(fileName), {
+        headers: { 'Authorization': 'Bearer ' + token }
+    }).then(res => {
+        if (!res.ok) { showToast('⚠️ Файл серверда мавжуд эмас', 'error'); return; }
+        return res.blob();
+    }).then(blob => {
+        if (!blob) return;
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a'); a.href = url; a.download = fileName; a.click();
+        URL.revokeObjectURL(url);
+        showToast(`✅ ${fileName} юклаб олинди`);
+    }).catch(() => showToast('⚠️ Юклаб олишда хато', 'error'));
+}
+
+function _fmtSize(b) {
+    if (!b) return '';
+    if (b < 1024) return b + ' B';
+    if (b < 1048576) return (b / 1024).toFixed(1) + ' KB';
+    return (b / 1048576).toFixed(1) + ' MB';
+}
+function _fmtIcon(name) {
+    const ext = (name || '').split('.').pop().toLowerCase();
+    if (ext === 'pdf') return '📕';
+    if (['doc', 'docx'].includes(ext)) return '📝';
+    if (['xls', 'xlsx'].includes(ext)) return '📊';
+    return '📄';
+}
+
 async function renderGoogleDrive() {
     const grid = document.getElementById('driveFilesGrid');
     const status = document.getElementById('driveStatus');
@@ -910,7 +987,58 @@ async function renderGoogleDrive() {
         renderDriveBreadcrumbs();
 
         const files = data.files || [];
-        if (!files.length) {
+
+        // === DEFAULT FOLDERS + LIB FILES (only at root level) ===
+        let profileHtml = '';
+        if (_driveCurrentFolder === 'root') {
+            const deleted = _getDeletedItems();
+
+            // 3 default folders
+            const activeFolders = _defaultProfileFolders.filter(f => !deleted.folders.includes(f.id));
+            if (activeFolders.length > 0) {
+                profileHtml += '<div style="margin-bottom:8px;padding:4px 8px"><span style="font-size:0.78rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px">📁 Ҳужжатлар папкалари</span></div>';
+                activeFolders.forEach(f => {
+                    const esc = f.name.replace(/'/g, "\\'");
+                    profileHtml += `<div class="drive-file-card drive-folder" style="border-left:3px solid var(--accent-primary)">
+                        <div class="drive-file-icon" style="font-size:1.8rem">${f.icon}</div>
+                        <div class="drive-file-info">
+                            <div class="drive-file-name" title="${f.name}">${f.name}</div>
+                            <div class="drive-file-meta">${f.desc}</div>
+                        </div>
+                        <div class="drive-file-actions" onclick="event.stopPropagation()">
+                            <button class="btn-sm btn-danger" onclick="deleteDefaultFolder('${f.id}','${esc}')" title="Ўчириш">🗑</button>
+                        </div>
+                    </div>`;
+                });
+            }
+
+            // Lib files
+            const activeLibFiles = _libFiles.filter(f => !deleted.files.includes(f.name));
+            if (activeLibFiles.length > 0) {
+                profileHtml += '<div style="margin:12px 0 8px;padding:4px 8px"><span style="font-size:0.78rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px">📚 Кутубхона файллари (' + activeLibFiles.length + ')</span></div>';
+                activeLibFiles.forEach(f => {
+                    const esc = f.name.replace(/'/g, "\\'");
+                    profileHtml += `<div class="drive-file-card" style="border-left:3px solid #4A7FBF">
+                        <div class="drive-file-icon" style="font-size:1.5rem">${_fmtIcon(f.name)}</div>
+                        <div class="drive-file-info">
+                            <div class="drive-file-name" title="${f.name}">${f.name}</div>
+                            <div class="drive-file-meta">${_fmtSize(f.size)}</div>
+                        </div>
+                        <div class="drive-file-actions" onclick="event.stopPropagation()">
+                            <button class="btn-sm" onclick="downloadLibFileFromDrive('${esc}')" title="Юклаб олиш">⬇️</button>
+                            <button class="btn-sm btn-danger" onclick="deleteLibFile('${esc}')" title="Ўчириш">🗑</button>
+                        </div>
+                    </div>`;
+                });
+            }
+
+            // Separator before Drive files
+            if (profileHtml && files.length > 0) {
+                profileHtml += '<div style="margin:16px 0 8px;padding:4px 8px;border-top:2px solid rgba(180,140,100,0.1)"><span style="font-size:0.78rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px">☁️ Drive файллари</span></div>';
+            }
+        }
+
+        if (!files.length && !profileHtml) {
             grid.innerHTML = '<div style="text-align:center;padding:60px;color:var(--text-muted)"><div style="font-size:3rem;margin-bottom:12px">📂</div><p>Бу папка бўш</p></div>';
             return;
         }
@@ -919,7 +1047,7 @@ async function renderGoogleDrive() {
         const folders = files.filter(f => f.mimeType === 'application/vnd.google-apps.folder');
         const regularFiles = files.filter(f => f.mimeType !== 'application/vnd.google-apps.folder');
 
-        grid.innerHTML = [...folders, ...regularFiles].map(file => {
+        const driveHtml = [...folders, ...regularFiles].map(file => {
             const isFolder = file.mimeType === 'application/vnd.google-apps.folder';
             const icon = getDriveIcon(file.mimeType);
             const size = file.size ? formatFileSize(parseInt(file.size)) : '';
@@ -939,7 +1067,11 @@ async function renderGoogleDrive() {
             </div>`;
         }).join('');
 
-        if (status) status.innerHTML = `<div style="font-size:0.78rem;color:var(--text-muted);padding:4px 0">📊 ${folders.length} папка, ${regularFiles.length} файл</div>`;
+        grid.innerHTML = profileHtml + driveHtml;
+
+        const totalFolders = folders.length + (_driveCurrentFolder === 'root' ? _defaultProfileFolders.filter(f => !_getDeletedItems().folders.includes(f.id)).length : 0);
+        const totalFiles = regularFiles.length + (_driveCurrentFolder === 'root' ? _libFiles.filter(f => !_getDeletedItems().files.includes(f.name)).length : 0);
+        if (status) status.innerHTML = `<div style="font-size:0.78rem;color:var(--text-muted);padding:4px 0">📊 ${totalFolders} папка, ${totalFiles} файл</div>`;
 
     } catch (err) {
         grid.innerHTML = `<div style="text-align:center;padding:60px;color:var(--danger)"><div style="font-size:2rem;margin-bottom:12px">❌</div><p>${err.message}</p></div>`;

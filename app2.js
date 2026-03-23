@@ -960,25 +960,70 @@ async function renderGoogleDrive() {
     const status = document.getElementById('driveStatus');
     if (!grid) return;
 
-    // Check connection status
-    try {
-        const token = getJwtToken();
-        if (!token) {
-            grid.innerHTML = '<div style="text-align:center;padding:60px;color:var(--text-muted)"><p>⚠️ Авторизация керак</p></div>';
-            return;
+    const token = getJwtToken();
+    if (!token) {
+        grid.innerHTML = '<div style="text-align:center;padding:60px;color:var(--text-muted)"><p>⚠️ Авторизация керак</p></div>';
+        return;
+    }
+
+    // === BUILD PROFILE FOLDERS + LIB FILES (always shown at root) ===
+    let profileHtml = '';
+    if (_driveCurrentFolder === 'root') {
+        const deleted = _getDeletedItems();
+
+        // 3 default folders
+        const activeFolders = _defaultProfileFolders.filter(f => !deleted.folders.includes(f.id));
+        if (activeFolders.length > 0) {
+            profileHtml += '<div style="margin-bottom:8px;padding:4px 8px"><span style="font-size:0.78rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px">📁 Ҳужжатлар папкалари</span></div>';
+            activeFolders.forEach(f => {
+                const esc = f.name.replace(/'/g, "\\'");
+                profileHtml += `<div class="drive-file-card drive-folder" style="border-left:3px solid var(--accent-primary)">
+                    <div class="drive-file-icon" style="font-size:1.8rem">${f.icon}</div>
+                    <div class="drive-file-info">
+                        <div class="drive-file-name" title="${f.name}">${f.name}</div>
+                        <div class="drive-file-meta">${f.desc}</div>
+                    </div>
+                    <div class="drive-file-actions" onclick="event.stopPropagation()">
+                        <button class="btn-sm btn-danger" onclick="deleteDefaultFolder('${f.id}','${esc}')" title="Ўчириш">🗑</button>
+                    </div>
+                </div>`;
+            });
         }
 
-        grid.innerHTML = '<div style="text-align:center;padding:60px;color:var(--text-muted)"><div class="loading-spinner" style="width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--accent-primary);border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 16px"></div><p>Юкланмоқда...</p></div>';
+        // Lib files
+        const activeLibFiles = _libFiles.filter(f => !deleted.files.includes(f.name));
+        if (activeLibFiles.length > 0) {
+            profileHtml += '<div style="margin:12px 0 8px;padding:4px 8px"><span style="font-size:0.78rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px">📚 Кутубхона файллари (' + activeLibFiles.length + ')</span></div>';
+            activeLibFiles.forEach(f => {
+                const esc = f.name.replace(/'/g, "\\'");
+                profileHtml += `<div class="drive-file-card" style="border-left:3px solid #4A7FBF">
+                    <div class="drive-file-icon" style="font-size:1.5rem">${_fmtIcon(f.name)}</div>
+                    <div class="drive-file-info">
+                        <div class="drive-file-name" title="${f.name}">${f.name}</div>
+                        <div class="drive-file-meta">${_fmtSize(f.size)}</div>
+                    </div>
+                    <div class="drive-file-actions" onclick="event.stopPropagation()">
+                        <button class="btn-sm" onclick="downloadLibFileFromDrive('${esc}')" title="Юклаб олиш">⬇️</button>
+                        <button class="btn-sm btn-danger" onclick="deleteLibFile('${esc}')" title="Ўчириш">🗑</button>
+                    </div>
+                </div>`;
+            });
+        }
+    }
 
+    // Show profile content immediately (if at root)
+    if (profileHtml) {
+        grid.innerHTML = profileHtml + '<div id="driveCloudSection"><div style="text-align:center;padding:20px;color:var(--text-muted);font-size:0.85rem">☁️ Drive юкланмоқда...</div></div>';
+    } else {
+        grid.innerHTML = '<div style="text-align:center;padding:60px;color:var(--text-muted)"><div class="loading-spinner" style="width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--accent-primary);border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 16px"></div><p>Юкланмоқда...</p></div>';
+    }
+
+    // === NOW TRY LOADING DRIVE FILES ===
+    try {
         const res = await fetch(`/api/drive/files?folderId=${_driveCurrentFolder}`, {
             headers: { 'Authorization': 'Bearer ' + token }
         });
         const data = await res.json();
-
-        if (!res.ok) {
-            grid.innerHTML = `<div style="text-align:center;padding:60px;color:var(--danger)"><div style="font-size:2rem;margin-bottom:12px">❌</div><p>${data.error || 'Хато юз берди'}</p></div>`;
-            return;
-        }
 
         // Update breadcrumbs
         if (data.breadcrumbs && data.breadcrumbs.length) {
@@ -986,68 +1031,28 @@ async function renderGoogleDrive() {
         }
         renderDriveBreadcrumbs();
 
-        const files = data.files || [];
-
-        // === DEFAULT FOLDERS + LIB FILES (only at root level) ===
-        let profileHtml = '';
-        if (_driveCurrentFolder === 'root') {
-            const deleted = _getDeletedItems();
-
-            // 3 default folders
-            const activeFolders = _defaultProfileFolders.filter(f => !deleted.folders.includes(f.id));
-            if (activeFolders.length > 0) {
-                profileHtml += '<div style="margin-bottom:8px;padding:4px 8px"><span style="font-size:0.78rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px">📁 Ҳужжатлар папкалари</span></div>';
-                activeFolders.forEach(f => {
-                    const esc = f.name.replace(/'/g, "\\'");
-                    profileHtml += `<div class="drive-file-card drive-folder" style="border-left:3px solid var(--accent-primary)">
-                        <div class="drive-file-icon" style="font-size:1.8rem">${f.icon}</div>
-                        <div class="drive-file-info">
-                            <div class="drive-file-name" title="${f.name}">${f.name}</div>
-                            <div class="drive-file-meta">${f.desc}</div>
-                        </div>
-                        <div class="drive-file-actions" onclick="event.stopPropagation()">
-                            <button class="btn-sm btn-danger" onclick="deleteDefaultFolder('${f.id}','${esc}')" title="Ўчириш">🗑</button>
-                        </div>
-                    </div>`;
-                });
+        if (!res.ok) {
+            // API error — but profile content already showing, just hide cloud section
+            const cloudEl = document.getElementById('driveCloudSection');
+            if (cloudEl) cloudEl.innerHTML = '';
+            if (!profileHtml) {
+                grid.innerHTML = `<div style="text-align:center;padding:60px;color:var(--danger)"><div style="font-size:2rem;margin-bottom:12px">❌</div><p>${data.error || 'Хато юз берди'}</p></div>`;
             }
-
-            // Lib files
-            const activeLibFiles = _libFiles.filter(f => !deleted.files.includes(f.name));
-            if (activeLibFiles.length > 0) {
-                profileHtml += '<div style="margin:12px 0 8px;padding:4px 8px"><span style="font-size:0.78rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px">📚 Кутубхона файллари (' + activeLibFiles.length + ')</span></div>';
-                activeLibFiles.forEach(f => {
-                    const esc = f.name.replace(/'/g, "\\'");
-                    profileHtml += `<div class="drive-file-card" style="border-left:3px solid #4A7FBF">
-                        <div class="drive-file-icon" style="font-size:1.5rem">${_fmtIcon(f.name)}</div>
-                        <div class="drive-file-info">
-                            <div class="drive-file-name" title="${f.name}">${f.name}</div>
-                            <div class="drive-file-meta">${_fmtSize(f.size)}</div>
-                        </div>
-                        <div class="drive-file-actions" onclick="event.stopPropagation()">
-                            <button class="btn-sm" onclick="downloadLibFileFromDrive('${esc}')" title="Юклаб олиш">⬇️</button>
-                            <button class="btn-sm btn-danger" onclick="deleteLibFile('${esc}')" title="Ўчириш">🗑</button>
-                        </div>
-                    </div>`;
-                });
-            }
-
-            // Separator before Drive files
-            if (profileHtml && files.length > 0) {
-                profileHtml += '<div style="margin:16px 0 8px;padding:4px 8px;border-top:2px solid rgba(180,140,100,0.1)"><span style="font-size:0.78rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px">☁️ Drive файллари</span></div>';
-            }
-        }
-
-        if (!files.length && !profileHtml) {
-            grid.innerHTML = '<div style="text-align:center;padding:60px;color:var(--text-muted)"><div style="font-size:3rem;margin-bottom:12px">📂</div><p>Бу папка бўш</p></div>';
             return;
         }
 
-        // Separate folders and files
+        const files = data.files || [];
+
+        // Build drive files HTML
         const folders = files.filter(f => f.mimeType === 'application/vnd.google-apps.folder');
         const regularFiles = files.filter(f => f.mimeType !== 'application/vnd.google-apps.folder');
 
-        const driveHtml = [...folders, ...regularFiles].map(file => {
+        let driveHtml = '';
+        if (files.length > 0 && profileHtml) {
+            driveHtml += '<div style="margin:16px 0 8px;padding:4px 8px;border-top:2px solid rgba(180,140,100,0.1)"><span style="font-size:0.78rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px">☁️ Drive файллари</span></div>';
+        }
+
+        driveHtml += [...folders, ...regularFiles].map(file => {
             const isFolder = file.mimeType === 'application/vnd.google-apps.folder';
             const icon = getDriveIcon(file.mimeType);
             const size = file.size ? formatFileSize(parseInt(file.size)) : '';
@@ -1067,14 +1072,25 @@ async function renderGoogleDrive() {
             </div>`;
         }).join('');
 
-        grid.innerHTML = profileHtml + driveHtml;
+        // Replace cloud section or set full grid
+        const cloudEl = document.getElementById('driveCloudSection');
+        if (cloudEl) {
+            cloudEl.innerHTML = driveHtml;
+        } else {
+            grid.innerHTML = profileHtml + driveHtml;
+        }
 
         const totalFolders = folders.length + (_driveCurrentFolder === 'root' ? _defaultProfileFolders.filter(f => !_getDeletedItems().folders.includes(f.id)).length : 0);
         const totalFiles = regularFiles.length + (_driveCurrentFolder === 'root' ? _libFiles.filter(f => !_getDeletedItems().files.includes(f.name)).length : 0);
         if (status) status.innerHTML = `<div style="font-size:0.78rem;color:var(--text-muted);padding:4px 0">📊 ${totalFolders} папка, ${totalFiles} файл</div>`;
 
     } catch (err) {
-        grid.innerHTML = `<div style="text-align:center;padding:60px;color:var(--danger)"><div style="font-size:2rem;margin-bottom:12px">❌</div><p>${err.message}</p></div>`;
+        // Network error — profile content already showing
+        const cloudEl = document.getElementById('driveCloudSection');
+        if (cloudEl) cloudEl.innerHTML = '';
+        if (!profileHtml) {
+            grid.innerHTML = `<div style="text-align:center;padding:60px;color:var(--danger)"><div style="font-size:2rem;margin-bottom:12px">❌</div><p>${err.message}</p></div>`;
+        }
     }
 }
 

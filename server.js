@@ -971,6 +971,150 @@ app.put('/api/profile/password', authMiddleware, async (req, res) => {
 });
 
 // ==========================================
+// PROFILE FILE MANAGER
+// ==========================================
+const LIB_DIR = path.join(__dirname, 'Lib');
+const DEFAULT_PROFILE_FOLDERS = [
+    { name: 'Қонунчилик ҳужжатлари', icon: '📜', description: 'Қонунлар ва меъёрий ҳужжатлар' },
+    { name: 'Мутахассисликка оид', icon: '🔬', description: 'Касбий ҳужжатлар ва маълумотнома' },
+    { name: 'Экспертиза жараёнига оид', icon: '📋', description: 'Экспертиза натижалари ва ҳисоботлар' }
+];
+
+// GET /api/profile/files — list folders + Lib files for profile file manager
+app.get('/api/profile/files', authMiddleware, (req, res) => {
+    try {
+        db = loadDB();
+        if (!db.user_file_manager) db.user_file_manager = {};
+        const userFm = db.user_file_manager[req.user.id] || { deletedFolders: [], deletedFiles: [], folderFiles: {} };
+
+        // Folders: default 3 minus deleted
+        const folders = DEFAULT_PROFILE_FOLDERS
+            .filter(f => !userFm.deletedFolders.includes(f.name))
+            .map(f => ({ ...f, files: userFm.folderFiles?.[f.name] || [] }));
+
+        // Lib files: read from Lib directory, exclude deleted
+        let libFiles = [];
+        if (fs.existsSync(LIB_DIR)) {
+            libFiles = fs.readdirSync(LIB_DIR)
+                .filter(f => !userFm.deletedFiles.includes(f) && !f.startsWith('.'))
+                .map(f => {
+                    const stat = fs.statSync(path.join(LIB_DIR, f));
+                    const ext = path.extname(f).toLowerCase();
+                    let icon = '📄';
+                    if (['.pdf'].includes(ext)) icon = '📕';
+                    else if (['.doc', '.docx'].includes(ext)) icon = '📝';
+                    else if (['.xls', '.xlsx'].includes(ext)) icon = '📊';
+                    else if (['.ppt', '.pptx'].includes(ext)) icon = '📎';
+                    return { name: f, size: stat.size, icon, ext };
+                });
+        }
+
+        res.json({ success: true, folders, libFiles });
+    } catch (err) {
+        res.status(500).json({ error: 'Файл менежерида хато: ' + err.message });
+    }
+});
+
+// DELETE /api/profile/folders/:name — remove folder from user's view
+app.delete('/api/profile/folders/:name', authMiddleware, (req, res) => {
+    try {
+        const folderName = decodeURIComponent(req.params.name);
+        db = loadDB();
+        if (!db.user_file_manager) db.user_file_manager = {};
+        if (!db.user_file_manager[req.user.id]) db.user_file_manager[req.user.id] = { deletedFolders: [], deletedFiles: [], folderFiles: {} };
+        if (!db.user_file_manager[req.user.id].deletedFolders.includes(folderName)) {
+            db.user_file_manager[req.user.id].deletedFolders.push(folderName);
+        }
+        saveDB(db);
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: 'Папкани ўчиришда хато: ' + err.message });
+    }
+});
+
+// DELETE /api/profile/files/:fileName — remove Lib file from user's view
+app.delete('/api/profile/files/:fileName', authMiddleware, (req, res) => {
+    try {
+        const fileName = decodeURIComponent(req.params.fileName);
+        db = loadDB();
+        if (!db.user_file_manager) db.user_file_manager = {};
+        if (!db.user_file_manager[req.user.id]) db.user_file_manager[req.user.id] = { deletedFolders: [], deletedFiles: [], folderFiles: {} };
+        if (!db.user_file_manager[req.user.id].deletedFiles.includes(fileName)) {
+            db.user_file_manager[req.user.id].deletedFiles.push(fileName);
+        }
+        saveDB(db);
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: 'Файлни ўчиришда хато: ' + err.message });
+    }
+});
+
+// POST /api/profile/folders/:name/upload — upload file to a profile folder
+app.post('/api/profile/folders/:name/upload', authMiddleware, upload.single('file'), (req, res) => {
+    if (!req.file) return res.status(400).json({ error: 'Файл танланмади' });
+    try {
+        const folderName = decodeURIComponent(req.params.name);
+        db = loadDB();
+        if (!db.user_file_manager) db.user_file_manager = {};
+        if (!db.user_file_manager[req.user.id]) db.user_file_manager[req.user.id] = { deletedFolders: [], deletedFiles: [], folderFiles: {} };
+        if (!db.user_file_manager[req.user.id].folderFiles) db.user_file_manager[req.user.id].folderFiles = {};
+        if (!db.user_file_manager[req.user.id].folderFiles[folderName]) db.user_file_manager[req.user.id].folderFiles[folderName] = [];
+
+        const fileEntry = {
+            id: 'pf_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
+            name: req.file.originalname,
+            savedName: req.file.filename,
+            size: req.file.size,
+            mimeType: req.file.mimetype,
+            uploadedAt: new Date().toISOString()
+        };
+        db.user_file_manager[req.user.id].folderFiles[folderName].push(fileEntry);
+        saveDB(db);
+        res.json({ success: true, file: fileEntry });
+    } catch (err) {
+        res.status(500).json({ error: 'Юклашда хато: ' + err.message });
+    }
+});
+
+// DELETE /api/profile/folder-files/:folderName/:fileId — remove uploaded file from folder
+app.delete('/api/profile/folder-files/:folderName/:fileId', authMiddleware, (req, res) => {
+    try {
+        const folderName = decodeURIComponent(req.params.folderName);
+        const fileId = req.params.fileId;
+        db = loadDB();
+        if (!db.user_file_manager?.[req.user.id]?.folderFiles?.[folderName]) {
+            return res.status(404).json({ error: 'Файл топилмади' });
+        }
+        const arr = db.user_file_manager[req.user.id].folderFiles[folderName];
+        const idx = arr.findIndex(f => f.id === fileId);
+        if (idx === -1) return res.status(404).json({ error: 'Файл топилмади' });
+        const removed = arr.splice(idx, 1)[0];
+        // Delete physical file
+        if (removed.savedName) {
+            const filePath = path.join(uploadDir, removed.savedName);
+            fs.unlink(filePath, () => {});
+        }
+        saveDB(db);
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: 'Ўчиришда хато: ' + err.message });
+    }
+});
+
+// GET /api/lib/download/:fileName — download a Lib file
+app.get('/api/lib/download/:fileName', authMiddleware, (req, res) => {
+    try {
+        const fileName = decodeURIComponent(req.params.fileName);
+        const filePath = path.join(LIB_DIR, fileName);
+        if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'Файл топилмади' });
+        res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(fileName)}"`);
+        fs.createReadStream(filePath).pipe(res);
+    } catch (err) {
+        res.status(500).json({ error: 'Юклаб олишда хато: ' + err.message });
+    }
+});
+
+// ==========================================
 // INVITATION MANAGEMENT
 // ==========================================
 

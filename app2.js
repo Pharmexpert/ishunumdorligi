@@ -1298,9 +1298,10 @@ function showProfileModal() {
             <div style="color:var(--text-muted);font-size:0.8rem">${user.email}</div>
         </div>
 
-        <div id="profileTabs" style="display:flex;gap:8px;margin-bottom:20px;border-bottom:2px solid rgba(180,140,100,0.1);padding-bottom:8px">
+        <div id="profileTabs" style="display:flex;gap:8px;margin-bottom:20px;border-bottom:2px solid rgba(180,140,100,0.1);padding-bottom:8px;flex-wrap:wrap">
             <button class="profile-tab active" onclick="showProfileTab('info')" style="padding:8px 16px;border:none;background:linear-gradient(135deg,#C07840,#D4956B);color:white;border-radius:8px;cursor:pointer;font-weight:600;font-size:0.85rem">📝 Маълумот</button>
             <button class="profile-tab" onclick="showProfileTab('password')" style="padding:8px 16px;border:1px solid rgba(180,140,100,0.2);background:transparent;border-radius:8px;cursor:pointer;font-weight:500;font-size:0.85rem;color:var(--text-secondary)">🔐 Парол</button>
+            <button class="profile-tab" onclick="showProfileTab('files')" style="padding:8px 16px;border:1px solid rgba(180,140,100,0.2);background:transparent;border-radius:8px;cursor:pointer;font-weight:500;font-size:0.85rem;color:var(--text-secondary)">📁 Файл менежери</button>
         </div>
 
         <div id="profileInfoTab">
@@ -1333,6 +1334,12 @@ function showProfileModal() {
                 <input id="profileConfirmPw" type="password" placeholder="••••••••" style="width:100%;padding:10px 14px;border:1px solid rgba(180,140,100,0.2);border-radius:10px;font-size:0.95rem;background:var(--bg-primary,#FFF8F0);color:var(--text-primary);box-sizing:border-box">
             </div>
             <button onclick="changeProfilePassword()" style="width:100%;padding:12px;background:linear-gradient(135deg,#C07840,#D4956B);color:white;border:none;border-radius:12px;font-weight:700;cursor:pointer;font-size:0.95rem">🔐 Паролни ўзгартириш</button>
+        </div>
+
+        <div id="profileFilesTab" style="display:none">
+            <div id="profileFilesContent" style="max-height:400px;overflow-y:auto">
+                <div style="text-align:center;padding:30px;color:var(--text-muted)">📂 Юкланмоқда...</div>
+            </div>
         </div>
     </div>`;
     document.body.appendChild(modal);
@@ -1388,21 +1395,32 @@ function updateSidebarAvatar(avatarUrl) {
 function showProfileTab(tab) {
     const infoTab = document.getElementById('profileInfoTab');
     const pwTab = document.getElementById('profilePasswordTab');
+    const filesTab = document.getElementById('profileFilesTab');
     const tabs = document.querySelectorAll('#profileTabs .profile-tab');
+    // Hide all
+    infoTab.style.display = 'none';
+    pwTab.style.display = 'none';
+    if (filesTab) filesTab.style.display = 'none';
+    tabs.forEach(t => { t.style.background = 'transparent'; t.style.color = 'var(--text-secondary)'; t.style.border = '1px solid rgba(180,140,100,0.2)'; });
+    // Show selected
     if (tab === 'info') {
         infoTab.style.display = 'block';
-        pwTab.style.display = 'none';
         tabs[0].style.background = 'linear-gradient(135deg,#C07840,#D4956B)';
         tabs[0].style.color = 'white';
-        tabs[1].style.background = 'transparent';
-        tabs[1].style.color = 'var(--text-secondary)';
-    } else {
-        infoTab.style.display = 'none';
+        tabs[0].style.border = 'none';
+    } else if (tab === 'password') {
         pwTab.style.display = 'block';
         tabs[1].style.background = 'linear-gradient(135deg,#C07840,#D4956B)';
         tabs[1].style.color = 'white';
-        tabs[0].style.background = 'transparent';
-        tabs[0].style.color = 'var(--text-secondary)';
+        tabs[1].style.border = 'none';
+    } else if (tab === 'files') {
+        if (filesTab) filesTab.style.display = 'block';
+        if (tabs[2]) {
+            tabs[2].style.background = 'linear-gradient(135deg,#C07840,#D4956B)';
+            tabs[2].style.color = 'white';
+            tabs[2].style.border = 'none';
+        }
+        loadProfileFiles();
     }
 }
 
@@ -1446,6 +1464,189 @@ async function changeProfilePassword() {
         } else {
             showToast('❌ ' + res.error, 'error');
         }
+    } catch (err) { showToast('❌ ' + err.message, 'error'); }
+}
+
+// ==========================================
+// PROFILE FILE MANAGER
+// ==========================================
+async function loadProfileFiles() {
+    const content = document.getElementById('profileFilesContent');
+    if (!content) return;
+    content.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-muted)">📂 Юкланмоқда...</div>';
+    try {
+        const data = await apiCall('/api/profile/files');
+        if (!data.success) { content.innerHTML = '<div style="text-align:center;padding:20px;color:var(--danger)">❌ ' + data.error + '</div>'; return; }
+        renderProfileFiles(data.folders, data.libFiles);
+    } catch (err) {
+        content.innerHTML = '<div style="text-align:center;padding:20px;color:var(--danger)">❌ ' + err.message + '</div>';
+    }
+}
+
+function renderProfileFiles(folders, libFiles) {
+    const content = document.getElementById('profileFilesContent');
+    if (!content) return;
+
+    let html = '';
+
+    // Folders section
+    if (folders && folders.length > 0) {
+        html += '<div style="margin-bottom:16px">';
+        html += '<h4 style="margin:0 0 12px;font-size:0.9rem;color:var(--text-dark);display:flex;align-items:center;gap:6px">📁 Папкалар</h4>';
+        folders.forEach(folder => {
+            const escapedName = folder.name.replace(/'/g, "\\'");
+            const fileCount = folder.files ? folder.files.length : 0;
+            html += `<div style="margin-bottom:10px;border:1px solid rgba(180,140,100,0.12);border-radius:12px;overflow:hidden">
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:rgba(180,140,100,0.04);cursor:pointer" onclick="toggleProfileFolder('${escapedName}')">
+                    <div style="display:flex;align-items:center;gap:10px">
+                        <span style="font-size:1.3rem">${folder.icon}</span>
+                        <div>
+                            <div style="font-weight:600;font-size:0.9rem;color:var(--text-primary)">${folder.name}</div>
+                            <div style="font-size:0.75rem;color:var(--text-muted)">${folder.description || ''}${fileCount > 0 ? ' · ' + fileCount + ' файл' : ''}</div>
+                        </div>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:6px" onclick="event.stopPropagation()">
+                        <label style="cursor:pointer;padding:4px 10px;background:rgba(59,155,110,0.1);color:#3B9B6E;border-radius:6px;font-size:0.75rem;font-weight:600" title="Файл юклаш">
+                            📎 Юклаш
+                            <input type="file" style="display:none" onchange="uploadToProfileFolder('${escapedName}', this)">
+                        </label>
+                        <button onclick="deleteProfileFolder('${escapedName}')" style="padding:4px 8px;background:rgba(196,77,77,0.1);color:#C44D4D;border:none;border-radius:6px;cursor:pointer;font-size:0.8rem" title="Папкани ўчириш">🗑</button>
+                    </div>
+                </div>
+                <div id="pfolder_${folder.name.replace(/\s/g, '_')}" style="display:none;padding:8px 16px;border-top:1px solid rgba(180,140,100,0.08)">
+                    ${fileCount > 0 ? folder.files.map(f => `
+                        <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(180,140,100,0.05)">
+                            <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0">
+                                <span style="font-size:0.9rem">${getProfileFileIcon(f.name)}</span>
+                                <span style="font-size:0.82rem;color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${f.name}</span>
+                                <span style="font-size:0.7rem;color:var(--text-muted);flex-shrink:0">${formatProfileFileSize(f.size)}</span>
+                            </div>
+                            <button onclick="deleteProfileFolderFile('${escapedName}','${f.id}')" style="padding:2px 6px;background:none;border:none;cursor:pointer;font-size:0.8rem" title="Ўчириш">🗑</button>
+                        </div>
+                    `).join('') : '<div style="padding:10px;text-align:center;color:var(--text-muted);font-size:0.8rem">Ҳали файллар йўқ</div>'}
+                </div>
+            </div>`;
+        });
+        html += '</div>';
+    }
+
+    // Lib files section
+    if (libFiles && libFiles.length > 0) {
+        html += '<div style="margin-top:16px">';
+        html += '<h4 style="margin:0 0 12px;font-size:0.9rem;color:var(--text-dark);display:flex;align-items:center;gap:6px">📚 Кутубхона файллари <span style="font-size:0.75rem;color:var(--text-muted);font-weight:400">(' + libFiles.length + ')</span></h4>';
+        libFiles.forEach(file => {
+            const escapedName = file.name.replace(/'/g, "\\'");
+            html += `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;margin-bottom:6px;background:rgba(180,140,100,0.03);border:1px solid rgba(180,140,100,0.08);border-radius:10px;transition:all 0.2s" onmouseenter="this.style.background='rgba(180,140,100,0.08)'" onmouseleave="this.style.background='rgba(180,140,100,0.03)'">
+                <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0">
+                    <span style="font-size:1.2rem">${file.icon}</span>
+                    <div style="min-width:0">
+                        <div style="font-size:0.85rem;font-weight:500;color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${file.name}</div>
+                        <div style="font-size:0.72rem;color:var(--text-muted)">${formatProfileFileSize(file.size)}</div>
+                    </div>
+                </div>
+                <div style="display:flex;gap:6px;flex-shrink:0">
+                    <button onclick="downloadLibFile('${escapedName}')" style="padding:5px 10px;background:rgba(74,127,191,0.1);color:#4A7FBF;border:none;border-radius:6px;cursor:pointer;font-size:0.78rem;font-weight:600" title="Юклаб олиш">⬇️</button>
+                    <button onclick="deleteProfileFile('${escapedName}')" style="padding:5px 10px;background:rgba(196,77,77,0.1);color:#C44D4D;border:none;border-radius:6px;cursor:pointer;font-size:0.78rem;font-weight:600" title="Ўчириш">🗑</button>
+                </div>
+            </div>`;
+        });
+        html += '</div>';
+    }
+
+    if ((!folders || folders.length === 0) && (!libFiles || libFiles.length === 0)) {
+        html = '<div style="text-align:center;padding:40px;color:var(--text-muted)"><div style="font-size:3rem;margin-bottom:12px">📂</div><p>Барча файллар ва папкалар ўчирилган</p></div>';
+    }
+
+    content.innerHTML = html;
+}
+
+function toggleProfileFolder(folderName) {
+    const el = document.getElementById('pfolder_' + folderName.replace(/\s/g, '_'));
+    if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+function getProfileFileIcon(name) {
+    const ext = (name || '').split('.').pop().toLowerCase();
+    if (ext === 'pdf') return '📕';
+    if (['doc', 'docx'].includes(ext)) return '📝';
+    if (['xls', 'xlsx'].includes(ext)) return '📊';
+    if (['ppt', 'pptx'].includes(ext)) return '📎';
+    if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)) return '🖼️';
+    if (['zip', 'rar', '7z'].includes(ext)) return '📦';
+    return '📄';
+}
+
+function formatProfileFileSize(bytes) {
+    if (!bytes || bytes === 0) return '';
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    return (bytes / (1024 * 1024 * 1024)).toFixed(1) + ' GB';
+}
+
+async function deleteProfileFolder(folderName) {
+    if (!confirm(`"${folderName}" папкасини ўчирасизми?`)) return;
+    try {
+        const data = await apiCall('/api/profile/folders/' + encodeURIComponent(folderName), { method: 'DELETE' });
+        if (data.success) { showToast('🗑 Папка ўчирилди'); loadProfileFiles(); }
+        else showToast('❌ ' + data.error, 'error');
+    } catch (err) { showToast('❌ ' + err.message, 'error'); }
+}
+
+async function deleteProfileFile(fileName) {
+    if (!confirm(`"${fileName}" файлини ўчирасизми?`)) return;
+    try {
+        const data = await apiCall('/api/profile/files/' + encodeURIComponent(fileName), { method: 'DELETE' });
+        if (data.success) { showToast('🗑 Файл ўчирилди'); loadProfileFiles(); }
+        else showToast('❌ ' + data.error, 'error');
+    } catch (err) { showToast('❌ ' + err.message, 'error'); }
+}
+
+async function downloadLibFile(fileName) {
+    const token = getJwtToken();
+    if (!token) return;
+    try {
+        showToast(`⬇️ ${fileName} юкланмоқда...`);
+        const res = await fetch('/api/lib/download/' + encodeURIComponent(fileName), {
+            headers: { 'Authorization': 'Bearer ' + token }
+        });
+        if (!res.ok) { showToast('❌ Юклаб олишда хато', 'error'); return; }
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = fileName; a.click();
+        URL.revokeObjectURL(url);
+        showToast(`✅ ${fileName} юклаб олинди`);
+    } catch (err) { showToast('❌ ' + err.message, 'error'); }
+}
+
+async function uploadToProfileFolder(folderName, input) {
+    if (!input.files || !input.files[0]) return;
+    const file = input.files[0];
+    const token = getJwtToken();
+    if (!token) { showToast('Авторизация керак', 'error'); return; }
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+        showToast(`📤 ${file.name} юкланмоқда...`);
+        const res = await fetch('/api/profile/folders/' + encodeURIComponent(folderName) + '/upload', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + token },
+            body: formData
+        });
+        const data = await res.json();
+        if (data.success) { showToast(`✅ ${file.name} юкланди`); loadProfileFiles(); }
+        else showToast('❌ ' + data.error, 'error');
+    } catch (err) { showToast('❌ ' + err.message, 'error'); }
+    input.value = '';
+}
+
+async function deleteProfileFolderFile(folderName, fileId) {
+    if (!confirm('Бу файлни ўчирасизми?')) return;
+    try {
+        const data = await apiCall('/api/profile/folder-files/' + encodeURIComponent(folderName) + '/' + fileId, { method: 'DELETE' });
+        if (data.success) { showToast('🗑 Файл ўчирилди'); loadProfileFiles(); }
+        else showToast('❌ ' + data.error, 'error');
     } catch (err) { showToast('❌ ' + err.message, 'error'); }
 }
 

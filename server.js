@@ -1522,6 +1522,7 @@ const GOOGLE_DRIVE_FOLDER_ID = '1C-5nwpnKtsLqK3Kka8EHCBVwMu7UcgPf';
 
 // Try to create OAuth2 client
 let gOAuth2Client = null;
+let gDriveAuthorized = false; // tracks if refresh token is set
 const G_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const G_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
 // Redirect URI determined dynamically from request
@@ -1538,6 +1539,7 @@ if (G_CLIENT_ID && G_CLIENT_SECRET) {
     db = loadDB();
     if (db.googleRefreshToken) {
         gOAuth2Client.setCredentials({ refresh_token: db.googleRefreshToken });
+        gDriveAuthorized = true;
         console.log('✅ Google Drive OAuth2 initialized with saved refresh token');
     } else {
         console.log('⚠️ Google OAuth2 client ready — refresh token not set. Visit /api/google/auth to authorize.');
@@ -1550,10 +1552,16 @@ if (G_CLIENT_ID && G_CLIENT_SECRET) {
             const creds = JSON.parse(fs.readFileSync(credsPath, 'utf-8'));
             const auth = new google.auth.GoogleAuth({ credentials: creds, scopes: ['https://www.googleapis.com/auth/drive'] });
             gOAuth2Client = auth;
+            gDriveAuthorized = true;
             console.log('⚠️ Using Service Account for Google Drive (may have quota limits)');
         }
     } catch (e) { console.warn('Google Drive API not available'); }
 }
+
+// GET /api/drive/status — check if Google Drive OAuth is authorized
+app.get('/api/drive/status', authMiddleware, (req, res) => {
+    res.json({ authorized: gDriveAuthorized, clientReady: !!gOAuth2Client });
+});
 
 // OAuth2 authorization URL
 app.get('/api/google/auth', (req, res) => {
@@ -1604,14 +1612,22 @@ app.get('/api/google/callback', async (req, res) => {
 
 // Upload file to Google Drive and return edit URL
 app.post('/api/drive/open-in-google/:fileId', authMiddleware, async (req, res) => {
-    if (!gOAuth2Client) return res.status(503).json({ error: 'Google Drive уланмаган. Админ /api/google/auth орқали авторизация қилсин.' });
-
     const files = getDriveFiles();
     const file = files.find(f => f.id === req.params.fileId && !f.deleted);
     if (!file || !file.filename) return res.status(404).json({ error: 'Файл топилмади' });
 
     const filePath = path.join(driveDir, file.filename);
     if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'Файл серверда топилмади' });
+
+    // If Google Drive OAuth not authorized — use Google Docs Viewer fallback
+    if (!gDriveAuthorized || !gOAuth2Client) {
+        const proto = req.headers['x-forwarded-proto'] || req.protocol;
+        const host = req.headers.host;
+        const publicUrl = `${proto}://${host}/api/drive/public/${file.id}`;
+        const viewerUrl = `https://docs.google.com/gview?url=${encodeURIComponent(publicUrl)}&embedded=false`;
+        logDriveActivity(req.user.id, req.user.name, 'open_google_viewer', file.name, file.id);
+        return res.json({ success: true, url: viewerUrl, fallback: true });
+    }
 
     try {
         const drive = google.drive({ version: 'v3', auth: gOAuth2Client });
@@ -1649,7 +1665,12 @@ app.post('/api/drive/open-in-google/:fileId', authMiddleware, async (req, res) =
         res.json({ success: true, url: updated.data.webViewLink, fileId: response.data.id });
     } catch (err) {
         console.error('Google Drive upload error:', err.message);
-        res.status(500).json({ error: 'Google Drive га юклашда хато: ' + err.message });
+        // Fallback to Google Docs Viewer on any error
+        const proto = req.headers['x-forwarded-proto'] || req.protocol;
+        const host = req.headers.host;
+        const publicUrl = `${proto}://${host}/api/drive/public/${file.id}`;
+        const viewerUrl = `https://docs.google.com/gview?url=${encodeURIComponent(publicUrl)}&embedded=false`;
+        res.json({ success: true, url: viewerUrl, fallback: true });
     }
 });
 

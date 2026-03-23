@@ -2097,16 +2097,38 @@ let _chatPollTimer = null;
 let _chatHeartbeatTimer = null;
 let _lastMsgCount = 0;
 
+function hideChatFab() {
+    localStorage.setItem('_chatHidden', 'true');
+    const btn = document.getElementById('chatToggleBtn');
+    const hideBtn = document.getElementById('chatHideBtn');
+    const showBtn = document.getElementById('chatShowBtn');
+    if (btn) btn.style.display = 'none';
+    if (hideBtn) hideBtn.style.display = 'none';
+    if (showBtn) showBtn.style.display = 'flex';
+}
+function showChatFab() {
+    localStorage.setItem('_chatHidden', 'false');
+    const btn = document.getElementById('chatToggleBtn');
+    const hideBtn = document.getElementById('chatHideBtn');
+    const showBtn = document.getElementById('chatShowBtn');
+    if (btn) btn.style.display = '';
+    if (hideBtn) hideBtn.style.display = 'flex';
+    if (showBtn) showBtn.style.display = 'none';
+}
+
 function initChatWidget() {
     if (document.getElementById('chatWidget')) return;
 
     const widget = document.createElement('div');
     widget.id = 'chatWidget';
+    const chatHidden = localStorage.getItem('_chatHidden') === 'true';
     widget.innerHTML = `
-    <button id="chatToggleBtn" onclick="toggleChat()" title="Чат">
+    <button id="chatToggleBtn" onclick="toggleChat()" title="Чат" ${chatHidden ? 'style="display:none"' : ''}>
         💬
         <span id="chatBadge" class="chat-badge" style="display:none">0</span>
     </button>
+    <button id="chatShowBtn" onclick="showChatFab()" title="Чатни кўрсатиш" style="position:fixed;bottom:12px;right:12px;width:28px;height:28px;border-radius:50%;border:1px solid rgba(180,140,100,0.3);background:var(--card-bg,#FFFBF5);color:var(--text-muted);font-size:0.7rem;cursor:pointer;z-index:999;display:${chatHidden ? 'flex' : 'none'};align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.1)">💬</button>
+    <button id="chatHideBtn" onclick="hideChatFab()" title="Чатни яшириш" style="position:fixed;bottom:76px;right:12px;width:22px;height:22px;border-radius:50%;border:1px solid rgba(180,140,100,0.2);background:var(--card-bg,#FFFBF5);color:var(--text-muted);font-size:0.65rem;cursor:pointer;z-index:1001;display:${chatHidden ? 'none' : 'flex'};align-items:center;justify-content:center;box-shadow:0 1px 4px rgba(0,0,0,0.08)">✕</button>
     <div id="chatPanel" class="chat-panel" style="display:none">
         <div id="chatHeader" class="chat-header">
             <div class="chat-header-left">

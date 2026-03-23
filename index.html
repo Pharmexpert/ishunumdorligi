@@ -160,7 +160,10 @@
         <div class="notif-dropdown" id="notifDropdown" style="display:none">
             <div class="notif-header">
                 <h3 id="notifTitle">Bildirishnomalar</h3>
-                <button class="notif-mark-read" onclick="markAllRead()" id="notifMarkRead">✓ Barchasini o'qish</button>
+                <div style="display:flex;gap:8px;align-items:center">
+                    <button class="notif-mark-read" onclick="markAllRead()" id="notifMarkRead">✓ Barchasini o'qish</button>
+                    <button onclick="document.getElementById('notifDropdown').style.display='none'" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:var(--text-muted);padding:4px" title="Ёпиш">✕</button>
+                </div>
             </div>
             <div class="notif-list" id="notifList"></div>
         </div>

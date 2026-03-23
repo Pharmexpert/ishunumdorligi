@@ -1573,7 +1573,7 @@ app.get('/api/google/auth', (req, res) => {
     const url = oauth2.generateAuthUrl({
         access_type: 'offline',
         prompt: 'consent',
-        scope: ['https://www.googleapis.com/auth/drive.file']
+        scope: ['https://www.googleapis.com/auth/drive']
     });
     res.redirect(url);
 });
@@ -1588,6 +1588,7 @@ app.get('/api/google/callback', async (req, res) => {
         const { tokens } = await oauth2.getToken(code);
         oauth2.setCredentials(tokens);
         gOAuth2Client = oauth2;
+        gDriveAuthorized = true;
 
         // Save refresh token
         if (tokens.refresh_token) {

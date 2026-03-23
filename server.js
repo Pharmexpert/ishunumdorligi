@@ -1612,67 +1612,113 @@ app.get('/api/google/callback', async (req, res) => {
 });
 
 // Upload file to Google Drive and return edit URL
+// NOTE: This uses Google Drive API — does NOT affect Google OAuth login (POST /api/auth/google)
 app.post('/api/drive/open-in-google/:fileId', authMiddleware, async (req, res) => {
     const files = getDriveFiles();
     const file = files.find(f => f.id === req.params.fileId && !f.deleted);
-    if (!file || !file.filename) return res.status(404).json({ error: 'Файл топилмади' });
+    if (!file) return res.status(404).json({ error: 'Файл топилмади' });
 
-    const filePath = path.join(driveDir, file.filename);
-    if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'Файл серверда топилмади' });
+    const filePath = file.filename ? path.join(driveDir, file.filename) : null;
+    const fileExists = filePath && fs.existsSync(filePath);
 
-    // If Google Drive OAuth not authorized — use Google Docs Viewer fallback
-    if (!gDriveAuthorized || !gOAuth2Client) {
+    // If file already has a googleFileId — try to use it directly (no local file needed)
+    if (file.googleFileId && gDriveAuthorized && gOAuth2Client) {
+        try {
+            const drive = google.drive({ version: 'v3', auth: gOAuth2Client });
+            const existing = await drive.files.get({ fileId: file.googleFileId, fields: 'id, webViewLink' });
+            if (existing.data && existing.data.webViewLink) {
+                logDriveActivity(req.user.id, req.user.name, 'open_google', file.name, file.id);
+                return res.json({ success: true, url: existing.data.webViewLink, fileId: existing.data.id, mode: 'cached' });
+            }
+        } catch (e) {
+            console.warn('Cached Google file not found, re-uploading...', e.message);
+            file.googleFileId = null; // Clear stale cache
+        }
+    }
+
+    // Determine document type for conversion
+    const isOfficeDoc = /\.(docx?|xlsx?|pptx?|csv)$/i.test(file.name) ||
+        /word|spreadsheet|excel|presentation|powerpoint/i.test(file.mimeType || '');
+
+    // --- Path 1: Google Drive API available + local file exists → upload & convert ---
+    if (gDriveAuthorized && gOAuth2Client && fileExists) {
+        try {
+            const drive = google.drive({ version: 'v3', auth: gOAuth2Client });
+
+            // Determine Google conversion type for Office files
+            const convertMap = {
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'application/vnd.google-apps.document',
+                'application/msword': 'application/vnd.google-apps.document',
+                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'application/vnd.google-apps.spreadsheet',
+                'application/vnd.ms-excel': 'application/vnd.google-apps.spreadsheet',
+                'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'application/vnd.google-apps.presentation',
+                'application/vnd.ms-powerpoint': 'application/vnd.google-apps.presentation',
+                'text/csv': 'application/vnd.google-apps.spreadsheet'
+            };
+            const googleMimeType = convertMap[file.mimeType] || null;
+
+            const requestBody = { name: file.name, parents: [GOOGLE_DRIVE_FOLDER_ID] };
+            if (googleMimeType) requestBody.mimeType = googleMimeType; // Convert to Google format
+
+            const response = await drive.files.create({
+                requestBody,
+                media: { mimeType: file.mimeType || 'application/octet-stream', body: fs.createReadStream(filePath) },
+                fields: 'id, webViewLink'
+            });
+
+            // Make accessible to anyone with the link
+            await drive.permissions.create({
+                fileId: response.data.id,
+                requestBody: { role: 'writer', type: 'anyone' }
+            });
+
+            const updated = await drive.files.get({ fileId: response.data.id, fields: 'id, webViewLink' });
+
+            // Cache Google file ID for future use (won't need local file next time)
+            file.googleFileId = response.data.id;
+            saveDriveFiles(files);
+
+            logDriveActivity(req.user.id, req.user.name, 'open_google', file.name, file.id);
+            return res.json({
+                success: true,
+                url: updated.data.webViewLink,
+                fileId: response.data.id,
+                mode: 'google_drive',
+                converted: !!googleMimeType
+            });
+        } catch (err) {
+            console.error('Google Drive upload error:', err.message);
+            // Fall through to fallback viewers
+        }
+    }
+
+    // --- Path 2: Fallback viewers (no Google Drive API or upload failed) ---
+
+    // For Office files → use Microsoft Office Online Viewer (works without local file access for public URLs)
+    if (isOfficeDoc && fileExists) {
+        const proto = req.headers['x-forwarded-proto'] || req.protocol;
+        const host = req.headers.host;
+        const publicUrl = `${proto}://${host}/api/drive/public/${file.id}`;
+        const officeViewerUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(publicUrl)}`;
+        logDriveActivity(req.user.id, req.user.name, 'open_office_viewer', file.name, file.id);
+        return res.json({ success: true, url: officeViewerUrl, fallback: true, mode: 'office_viewer' });
+    }
+
+    // For any file with local access → Google Docs Viewer
+    if (fileExists) {
         const proto = req.headers['x-forwarded-proto'] || req.protocol;
         const host = req.headers.host;
         const publicUrl = `${proto}://${host}/api/drive/public/${file.id}`;
         const viewerUrl = `https://docs.google.com/gview?url=${encodeURIComponent(publicUrl)}&embedded=false`;
         logDriveActivity(req.user.id, req.user.name, 'open_google_viewer', file.name, file.id);
-        return res.json({ success: true, url: viewerUrl, fallback: true });
+        return res.json({ success: true, url: viewerUrl, fallback: true, mode: 'google_viewer' });
     }
 
-    try {
-        const drive = google.drive({ version: 'v3', auth: gOAuth2Client });
-
-        // Check if already uploaded (cached)
-        if (file.googleFileId) {
-            try {
-                const existing = await drive.files.get({ fileId: file.googleFileId, fields: 'id, webViewLink' });
-                if (existing.data) {
-                    logDriveActivity(req.user.id, req.user.name, 'open_google', file.name, file.id);
-                    return res.json({ success: true, url: existing.data.webViewLink, fileId: existing.data.id });
-                }
-            } catch (e) { /* file deleted from Drive, re-upload */ }
-        }
-
-        const response = await drive.files.create({
-            requestBody: { name: file.name, parents: [GOOGLE_DRIVE_FOLDER_ID] },
-            media: { mimeType: file.mimeType, body: fs.createReadStream(filePath) },
-            fields: 'id, webViewLink'
-        });
-
-        // Make accessible to anyone
-        await drive.permissions.create({
-            fileId: response.data.id,
-            requestBody: { role: 'writer', type: 'anyone' }
-        });
-
-        const updated = await drive.files.get({ fileId: response.data.id, fields: 'id, webViewLink' });
-
-        // Cache Google file ID
-        file.googleFileId = response.data.id;
-        saveDriveFiles(files);
-
-        logDriveActivity(req.user.id, req.user.name, 'open_google', file.name, file.id);
-        res.json({ success: true, url: updated.data.webViewLink, fileId: response.data.id });
-    } catch (err) {
-        console.error('Google Drive upload error:', err.message);
-        // Fallback to Google Docs Viewer on any error
-        const proto = req.headers['x-forwarded-proto'] || req.protocol;
-        const host = req.headers.host;
-        const publicUrl = `${proto}://${host}/api/drive/public/${file.id}`;
-        const viewerUrl = `https://docs.google.com/gview?url=${encodeURIComponent(publicUrl)}&embedded=false`;
-        res.json({ success: true, url: viewerUrl, fallback: true });
-    }
+    // --- Path 3: File not on server (Vercel ephemeral /tmp) ---
+    return res.status(404).json({
+        error: 'Файл серверда топилмади. Vercel да файллар вақтинча сақланади. Файлни қайтадан юкланг.',
+        needsReupload: true
+    });
 });
 
 // Activity logging

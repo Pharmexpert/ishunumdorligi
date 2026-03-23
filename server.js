@@ -503,7 +503,7 @@ app.post('/api/auth/reset-password', async (req, res) => {
 // ==========================================
 
 // POST /api/admin/invite
-app.post('/api/admin/invite', authMiddleware, leaderOrAdmin, async (req, res) => {
+app.post('/api/admin/invite', authMiddleware, async (req, res) => {
     let { email, department } = req.body;
     email = (email || '').trim().toLowerCase();
     department = (department || '').trim();
@@ -636,7 +636,7 @@ app.put('/api/admin/users/:id/edit', authMiddleware, leaderOrAdmin, (req, res) =
 });
 
 // GET /api/invitations
-app.get('/api/invitations', authMiddleware, leaderOrAdmin, (req, res) => {
+app.get('/api/invitations', authMiddleware, (req, res) => {
     db = loadDB();
     const invitations = req.user.role === 'admin' ? db.invitations : db.invitations.filter(inv => inv.invited_by === req.user.id);
     res.json({ invitations });

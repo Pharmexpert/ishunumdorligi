@@ -560,8 +560,11 @@ function formatNum(n) {
 }
 function formatNumShort(n) {
     const abs = Math.abs(n);
-    if (abs >= 1000000) return (n / 1000000).toFixed(1).replace(/\.0$/, '') + ' млн';
-    if (abs >= 1000) return (n / 1000).toFixed(0) + ' минг';
+    if (abs >= 1000000) {
+        const m = n / 1000000;
+        return (abs % 1000000 === 0 ? Math.round(m) : m.toFixed(1).replace(/\.0$/, '')) + ' млн';
+    }
+    if (abs >= 1000) return Math.round(n / 1000) + ' минг';
     return n.toString();
 }
 function formatDate(d) { if (!d) return '—'; const dt = new Date(d); return dt.toLocaleDateString('uz-UZ', { day: 'numeric', month: 'short' }); }
@@ -926,7 +929,7 @@ function renderDashboardCharts(tasks, fin, habits) {
     for (let i = 0; i < 3; i++) { m3.push(getMonthName(i)); const mf = fin[i] || { income: [], expenses: [] }; i3.push(mf.income.reduce((s, x) => s + x.amount, 0)); e3.push(mf.expenses.reduce((s, x) => s + x.amount, 0)); }
     charts.finOverview = new Chart(document.getElementById('chartFinanceOverview'), {
         type: 'bar', data: { labels: m3, datasets: [{ label: t('dash.income'), data: i3, backgroundColor: 'rgba(59,155,110,0.5)', borderRadius: 6 }, { label: t('fin.xarajat'), data: e3, backgroundColor: 'rgba(196,77,77,0.5)', borderRadius: 6 }] },
-        options: { responsive: true, maintainAspectRatio: false, scales: { x: { grid: { display: false }, ticks: { color: tc } }, y: { grid: { color: 'rgba(180,140,100,0.08)' }, ticks: { color: tc, callback: function (v) { return formatNumShort(v); } } } }, plugins: { legend: { labels: { color: tc } }, datalabels: { display: true, color: tc, font: { weight: '600', size: 11 }, anchor: 'end', align: 'top', formatter: function (v) { return formatNumShort(v); } }, tooltip: { callbacks: { label: function (ctx) { return ctx.dataset.label + ': ' + formatNum(ctx.raw) + " so'm"; } } } } }
+        options: { responsive: true, maintainAspectRatio: false, scales: { x: { grid: { display: false }, ticks: { color: tc } }, y: { grid: { color: 'rgba(180,140,100,0.08)' }, ticks: { color: tc, callback: function (v) { return formatNumShort(v); } } } }, plugins: { legend: { labels: { color: tc } }, datalabels: { display: true, color: tc, font: { weight: '600', size: 10 }, anchor: 'end', align: 'top', offset: 2, formatter: function (v) { return formatNumShort(v); } }, tooltip: { callbacks: { label: function (ctx) { return ctx.dataset.label + ': ' + formatNum(ctx.raw) + " so'm"; } } } } }
     });
     const ag = habits.flatMap(c => (c.goals || []).map(g => ({ name: g.name, progress: g.progress })));
     if (ag.length) {

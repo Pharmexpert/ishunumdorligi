@@ -361,7 +361,7 @@ function canAccessAdmin(user) { return user && user.role === 'admin'; }
 function canEditSettings(user) { return user && (user.role === 'admin' || user.role === 'rahbar'); }
 function canApproveCompletion(user) { return user && (user.role === 'admin' || user.role === 'rahbar'); }
 function canReviewTasks(user) { return user && (user.role === 'ekspert' || user.role === 'rahbar' || user.role === 'admin'); }
-function canInviteWorkers(user) { return user && (user.role === 'admin' || user.role === 'rahbar'); }
+function canInviteWorkers(user) { return !!user; }
 function canBrainstorm(user) { return user && (user.role === 'admin' || user.role === 'rahbar' || user.role === 'ekspert'); }
 
 // ===== DEPARTMENT HELPERS =====

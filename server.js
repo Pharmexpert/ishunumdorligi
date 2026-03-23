@@ -109,6 +109,12 @@ async function sendEmail(to, subject, html) {
     }
 }
 
+// Static files (HTML, CSS, JS, images)
+app.use(express.static(path.join(__dirname), {
+    extensions: ['html'],
+    index: 'login.html'
+}));
+
 // ==========================================
 // MIDDLEWARE
 // ==========================================

@@ -300,6 +300,7 @@ app.post('/api/auth/login', (req, res) => {
 // POST /api/auth/google
 app.post('/api/auth/google', async (req, res) => {
     let { name, email, credential, avatarUrl } = req.body;
+    let firstName = '', lastName = '';
 
     // Verify Google ID token if provided
     if (credential) {
@@ -308,7 +309,9 @@ app.post('/api/auth/google', async (req, res) => {
             if (!response.ok) return res.status(401).json({ error: 'Google токен тасдиқланмади' });
             const payload = await response.json();
             email = payload.email;
-            name = payload.name || payload.given_name || email.split('@')[0];
+            firstName = payload.given_name || '';
+            lastName = payload.family_name || '';
+            name = payload.name || `${firstName} ${lastName}`.trim() || email.split('@')[0];
             avatarUrl = payload.picture || null;
         } catch (err) {
             return res.status(401).json({ error: 'Google аутентификация хатоси' });
@@ -322,10 +325,17 @@ app.post('/api/auth/google', async (req, res) => {
     db = loadDB();
     let user = db.users.find(u => u.email === email);
     if (user) {
-        if (user.status === 'pending') return res.status(403).json({ error: 'Ҳисобингиз ҳали тасдиқланмаган.' });
+        // Existing user — update Google profile data
         if (user.status === 'rejected') return res.status(403).json({ error: 'Ҳисобингиз рад этилган.' });
+        // Auto-approve pending Google users on re-login
+        if (user.status === 'pending' && !user.password) {
+            user.status = 'approved';
+        }
         user.last_login = new Date().toISOString();
         if (avatarUrl) user.avatarUrl = avatarUrl;
+        if (firstName) user.firstName = firstName;
+        if (lastName) user.lastName = lastName;
+        user.authMethod = 'google';
         saveDB(db);
         const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '7d' });
         return res.json({ success: true, token, user: sanitizeUser(user) });
@@ -337,9 +347,10 @@ app.post('/api/auth/google', async (req, res) => {
     if (invitation && new Date(invitation.expires_at) >= new Date()) {
         const userId = genId('google');
         db.users.push({
-            id: userId, name: name || email.split('@')[0], email, password: null,
+            id: userId, name: name || email.split('@')[0], firstName, lastName, email, password: null,
             role: 'ishchi', department: invitation.department, status: 'approved',
-            avatar: (name || email).charAt(0).toUpperCase(), avatarUrl: avatarUrl || null, language: 'uz',
+            avatar: (name || email).charAt(0).toUpperCase(), avatarUrl: avatarUrl || null,
+            authMethod: 'google', language: 'uz',
             invited_by: invitation.invited_by, created_at: now, last_login: now,
             tasks_created: 0, tasks_completed: 0, avg_productivity: 0
         });
@@ -353,16 +364,30 @@ app.post('/api/auth/google', async (req, res) => {
         return res.json({ success: true, token, user: sanitizeUser(db.users.find(u => u.id === userId)), wasInvited: true });
     }
 
+    // New Google user — AUTO-APPROVE (no admin approval needed)
     const userId = genId('google');
     db.users.push({
-        id: userId, name: name || email.split('@')[0], email, password: null,
-        role: 'foydalanuvchi', department: '', status: 'pending',
-        avatar: (name || email).charAt(0).toUpperCase(), avatarUrl: avatarUrl || null, language: 'uz',
+        id: userId, name: name || email.split('@')[0], firstName, lastName, email, password: null,
+        role: 'foydalanuvchi', department: '', status: 'approved',
+        avatar: (name || email).charAt(0).toUpperCase(), avatarUrl: avatarUrl || null,
+        authMethod: 'google', language: 'uz',
         invited_by: null, created_at: now, last_login: now,
         tasks_created: 0, tasks_completed: 0, avg_productivity: 0
     });
+
+    // Notify all admins about new Google user
+    const admins = db.users.filter(u => u.role === 'admin' && u.id !== userId);
+    admins.forEach(admin => {
+        db.notifications.push({
+            id: genId('notif'), user_id: admin.id, type: 'new_google_user',
+            message: `🔐 Янги Google фойдаланувчи: ${name} (${email})`,
+            related_id: userId, is_read: 0, created_at: now
+        });
+    });
+
     saveDB(db);
-    return res.status(403).json({ error: 'Рўйхатдан ўтдингиз. Администратор тасдиқлашини кутинг.' });
+    const token = jwt.sign({ userId }, JWT_SECRET, { expiresIn: '7d' });
+    return res.json({ success: true, token, user: sanitizeUser(db.users.find(u => u.id === userId)), isNewUser: true });
 });
 
 // GET /api/auth/me
@@ -552,6 +577,34 @@ app.post('/api/admin/role/:id', authMiddleware, adminOnly, (req, res) => {
     const user = db.users.find(u => u.id === req.params.id);
     if (user) { user.role = role; saveDB(db); }
     res.json({ success: true });
+});
+
+// PUT /api/admin/users/:id/edit — Admin edits user profile
+app.put('/api/admin/users/:id/edit', authMiddleware, leaderOrAdmin, (req, res) => {
+    db = loadDB();
+    const user = db.users.find(u => u.id === req.params.id);
+    if (!user) return res.status(404).json({ error: 'Фойдаланувчи топилмади' });
+
+    const { name, firstName, lastName, email, department, phone, role } = req.body;
+    if (name !== undefined) user.name = name.trim();
+    if (firstName !== undefined) user.firstName = firstName.trim();
+    if (lastName !== undefined) user.lastName = lastName.trim();
+    if (email !== undefined) {
+        const newEmail = email.trim().toLowerCase();
+        // Check email uniqueness
+        const existing = db.users.find(u => u.email === newEmail && u.id !== user.id);
+        if (existing) return res.status(400).json({ error: 'Бу email бошқа фойдаланувчига тегишли' });
+        user.email = newEmail;
+    }
+    if (department !== undefined) user.department = department.trim();
+    if (phone !== undefined) user.phone = phone.trim();
+    if (role !== undefined) {
+        const validRoles = ['admin', 'rahbar', 'ekspert', 'ishchi', 'foydalanuvchi'];
+        if (validRoles.includes(role)) user.role = role;
+    }
+    if (name) user.avatar = name.charAt(0).toUpperCase();
+    saveDB(db);
+    res.json({ success: true, user: sanitizeUser(user) });
 });
 
 // GET /api/invitations

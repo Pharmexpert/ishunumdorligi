@@ -22,6 +22,7 @@ function renderAdminUsers(allUsers) {
     const approved = allUsers.filter(u => u.status === 'approved').length;
     const pending = allUsers.filter(u => u.status === 'pending').length;
     const rejected = allUsers.filter(u => u.status === 'rejected').length;
+    const googleUsers = allUsers.filter(u => u.authMethod === 'google').length;
 
     const statsEl = document.getElementById('adminStats');
     if (statsEl) statsEl.innerHTML = `
@@ -35,7 +36,10 @@ function renderAdminUsers(allUsers) {
         <div class="stat-info"><div class="stat-label">Кутилмоқда</div><div class="stat-value">${pending}</div></div></div>
 
         <div class="stat-card"><div class="stat-icon" style="background:rgba(196,77,77,0.1);color:#C44D4D"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div>
-        <div class="stat-info"><div class="stat-label">Рад этилган</div><div class="stat-value">${rejected}</div></div></div>`;
+        <div class="stat-info"><div class="stat-label">Рад этилган</div><div class="stat-value">${rejected}</div></div></div>
+
+        <div class="stat-card"><div class="stat-icon" style="background:rgba(66,133,244,0.1);color:#4285F4"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg></div>
+        <div class="stat-info"><div class="stat-label">Google</div><div class="stat-value">${googleUsers}</div></div></div>`;
 
     const roleBadge = r => {
         const map = { admin: '👑', rahbar: '🏷️', ekspert: '🔬', ishchi: '👷', foydalanuvchi: '👤' };
@@ -46,18 +50,26 @@ function renderAdminUsers(allUsers) {
         const labels = { approved: 'Тасдиқланган', pending: 'Кутилмоқда', rejected: 'Рад этилган' };
         return `<span class="status-badge badge-${cls[s] || 'warning'}">${labels[s] || s}</span>`;
     };
+    const authBadge = u => {
+        if (u.authMethod === 'google') return '<span style="background:rgba(66,133,244,0.1);color:#4285F4;padding:2px 8px;border-radius:6px;font-size:0.72rem;font-weight:600">🔐 Google</span>';
+        return '<span style="background:rgba(192,120,64,0.1);color:#C07840;padding:2px 8px;border-radius:6px;font-size:0.72rem;font-weight:600">🔑 Парол</span>';
+    };
 
     let html = '';
     allUsers.forEach(u => {
         const lastLogin = u.last_login ? new Date(u.last_login).toLocaleDateString('uz') : 'Кирмаган';
+        const avatarHtml = u.avatarUrl
+            ? `<img src="${u.avatarUrl}" alt="${u.name}" style="width:44px;height:44px;border-radius:50%;object-fit:cover">`
+            : `<div class="user-avatar">${u.avatar || u.name?.charAt(0) || '?'}</div>`;
+        const fullName = [u.firstName, u.lastName].filter(Boolean).join(' ');
         html += `
         <div class="admin-user-card" data-status="${u.status}" data-role="${u.role}">
-            <div class="user-avatar">${u.avatar || u.name?.charAt(0) || '?'}</div>
+            ${avatarHtml}
             <div class="user-info">
-                <div class="user-name">${u.name}</div>
-                <div class="user-email">${u.email}</div>
+                <div class="user-name">${u.name}${fullName && fullName !== u.name ? ` <span style="color:#9C8B7A;font-size:0.8rem">(${fullName})</span>` : ''}</div>
+                <div class="user-email">${u.email}${u.phone ? ` · 📞 ${u.phone}` : ''}</div>
                 <div class="user-dept">${u.department || '—'}</div>
-                <div style="margin-top:6px">${roleBadge(u.role)} ${statusBadge(u.status)}</div>
+                <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;align-items:center">${roleBadge(u.role)} ${statusBadge(u.status)} ${authBadge(u)}</div>
                 <div style="font-size:0.72rem;color:#9C8B7A;margin-top:4px">📅 Сўнгги кириш: ${lastLogin}</div>
             </div>
             <div class="user-actions">
@@ -65,6 +77,7 @@ function renderAdminUsers(allUsers) {
                     <button class="btn-sm btn-success" onclick="adminApprove('${u.id}')">✓ Тасдиқлаш</button>
                     <button class="btn-sm btn-danger" onclick="adminReject('${u.id}')">✗ Рад этиш</button>
                 ` : ''}
+                <button class="btn-sm" style="background:rgba(74,127,191,0.1);color:#4A7FBF;border:1px solid rgba(74,127,191,0.2)" onclick="adminEditUser('${u.id}')">✏️ Таҳрирлаш</button>
                 <select class="role-select" onchange="adminChangeRole('${u.id}', this.value)">
                     ${['admin', 'rahbar', 'ekspert', 'ishchi', 'foydalanuvchi'].map(r =>
             `<option value="${r}" ${u.role === r ? 'selected' : ''}>${r}</option>`
@@ -357,4 +370,111 @@ async function renderAdminInvites() {
         html += '</div>';
     }
     c.innerHTML = html;
+}
+
+// ==========================================
+// ADMIN EDIT USER MODAL
+// ==========================================
+async function adminEditUser(userId) {
+    const users = await fetchUsers();
+    const user = users.find(u => u.id === userId);
+    if (!user) return showToast('Фойдаланувчи топилмади', 'error');
+
+    // Get departments for dropdown
+    const depts = [...new Set(users.map(u => u.department).filter(Boolean))];
+    const deptOptions = depts.map(d => `<option value="${d}" ${user.department === d ? 'selected' : ''}>${d}</option>`).join('');
+
+    const modalHtml = `
+    <div id="adminEditModal" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:10000;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)" onclick="if(event.target===this)this.remove()">
+        <div style="background:linear-gradient(135deg,#FFFBF5,#FFF8F0);border-radius:20px;padding:32px;width:90%;max-width:520px;max-height:90vh;overflow-y:auto;box-shadow:0 24px 64px rgba(61,43,31,0.15);border:1px solid rgba(180,140,100,0.12)">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px">
+                <h3 style="margin:0;color:#3D2B1F;font-size:1.15rem">✏️ Фойдаланувчини таҳрирлаш</h3>
+                <button onclick="document.getElementById('adminEditModal').remove()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:#9C8B7A">✕</button>
+            </div>
+
+            ${user.avatarUrl ? `<div style="text-align:center;margin-bottom:20px"><img src="${user.avatarUrl}" style="width:72px;height:72px;border-radius:50%;object-fit:cover;border:3px solid rgba(192,120,64,0.2)"></div>` : ''}
+
+            <div style="display:grid;gap:16px">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                    <div>
+                        <label style="display:block;font-size:0.8rem;color:#6B5744;margin-bottom:4px;font-weight:600">Исм</label>
+                        <input id="editFirstName" value="${user.firstName || ''}" style="width:100%;padding:10px 14px;border:1px solid rgba(180,140,100,0.2);border-radius:10px;background:white;font-size:0.9rem;color:#3D2B1F;box-sizing:border-box" placeholder="Исм">
+                    </div>
+                    <div>
+                        <label style="display:block;font-size:0.8rem;color:#6B5744;margin-bottom:4px;font-weight:600">Фамилия</label>
+                        <input id="editLastName" value="${user.lastName || ''}" style="width:100%;padding:10px 14px;border:1px solid rgba(180,140,100,0.2);border-radius:10px;background:white;font-size:0.9rem;color:#3D2B1F;box-sizing:border-box" placeholder="Фамилия">
+                    </div>
+                </div>
+
+                <div>
+                    <label style="display:block;font-size:0.8rem;color:#6B5744;margin-bottom:4px;font-weight:600">Тўлиқ исм</label>
+                    <input id="editName" value="${user.name || ''}" style="width:100%;padding:10px 14px;border:1px solid rgba(180,140,100,0.2);border-radius:10px;background:white;font-size:0.9rem;color:#3D2B1F;box-sizing:border-box" placeholder="Тўлиқ исм">
+                </div>
+
+                <div>
+                    <label style="display:block;font-size:0.8rem;color:#6B5744;margin-bottom:4px;font-weight:600">📧 Email</label>
+                    <input id="editEmail" value="${user.email || ''}" type="email" style="width:100%;padding:10px 14px;border:1px solid rgba(180,140,100,0.2);border-radius:10px;background:white;font-size:0.9rem;color:#3D2B1F;box-sizing:border-box" placeholder="email@example.com">
+                </div>
+
+                <div>
+                    <label style="display:block;font-size:0.8rem;color:#6B5744;margin-bottom:4px;font-weight:600">📞 Телефон</label>
+                    <input id="editPhone" value="${user.phone || ''}" type="tel" style="width:100%;padding:10px 14px;border:1px solid rgba(180,140,100,0.2);border-radius:10px;background:white;font-size:0.9rem;color:#3D2B1F;box-sizing:border-box" placeholder="+998 XX XXX XX XX">
+                </div>
+
+                <div>
+                    <label style="display:block;font-size:0.8rem;color:#6B5744;margin-bottom:4px;font-weight:600">🏢 Бўлим / Ташкилот</label>
+                    <input id="editDepartment" value="${user.department || ''}" list="deptList" style="width:100%;padding:10px 14px;border:1px solid rgba(180,140,100,0.2);border-radius:10px;background:white;font-size:0.9rem;color:#3D2B1F;box-sizing:border-box" placeholder="Бўлим номи">
+                    <datalist id="deptList">${deptOptions}</datalist>
+                </div>
+
+                <div>
+                    <label style="display:block;font-size:0.8rem;color:#6B5744;margin-bottom:4px;font-weight:600">👤 Рол</label>
+                    <select id="editRole" style="width:100%;padding:10px 14px;border:1px solid rgba(180,140,100,0.2);border-radius:10px;background:white;font-size:0.9rem;color:#3D2B1F;box-sizing:border-box">
+                        ${['admin', 'rahbar', 'ekspert', 'ishchi', 'foydalanuvchi'].map(r =>
+        `<option value="${r}" ${user.role === r ? 'selected' : ''}>${{ admin: '👑 Администратор', rahbar: '🏷️ Раҳбар', ekspert: '🔬 Эксперт', ishchi: '👷 Ишчи', foydalanuvchi: '👤 Фойдаланувчи' }[r]}</option>`
+    ).join('')}
+                    </select>
+                </div>
+
+                <div style="font-size:0.78rem;color:#9C8B7A;padding:8px 0;border-top:1px solid rgba(180,140,100,0.08)">
+                    ${user.authMethod === 'google' ? '🔐 Google орқали рўйхатдан ўтган' : '🔑 Email/парол билан рўйхатдан ўтган'}
+                    · Рўйхатдан ўтган: ${user.created_at ? new Date(user.created_at).toLocaleDateString('uz') : '—'}
+                </div>
+            </div>
+
+            <div style="display:flex;gap:12px;margin-top:24px">
+                <button onclick="saveAdminEdit('${userId}')" style="flex:1;padding:12px;background:linear-gradient(135deg,#C07840,#D4956B);color:white;border:none;border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer;transition:transform 0.15s" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">💾 Сақлаш</button>
+                <button onclick="document.getElementById('adminEditModal').remove()" style="padding:12px 20px;background:rgba(180,140,100,0.08);color:#6B5744;border:1px solid rgba(180,140,100,0.15);border-radius:12px;font-size:0.95rem;cursor:pointer">Бекор</button>
+            </div>
+        </div>
+    </div>`;
+
+    // Remove existing modal if any
+    document.getElementById('adminEditModal')?.remove();
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
+
+async function saveAdminEdit(userId) {
+    const data = {
+        name: document.getElementById('editName').value,
+        firstName: document.getElementById('editFirstName').value,
+        lastName: document.getElementById('editLastName').value,
+        email: document.getElementById('editEmail').value,
+        phone: document.getElementById('editPhone').value,
+        department: document.getElementById('editDepartment').value,
+        role: document.getElementById('editRole').value
+    };
+
+    const result = await apiCall(`/api/admin/users/${userId}/edit`, {
+        method: 'PUT',
+        body: JSON.stringify(data)
+    });
+
+    if (result.success) {
+        showToast('✅ Фойдаланувчи маълумотлари сақланди');
+        document.getElementById('adminEditModal')?.remove();
+        renderAdmin();
+    } else {
+        showToast(result.error || 'Хатолик юз берди', 'error');
+    }
 }

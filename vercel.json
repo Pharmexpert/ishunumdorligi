@@ -1,0 +1,27 @@
+{
+    "version": 2,
+    "builds": [
+        {
+            "src": "server.js",
+            "use": "@vercel/node"
+        }
+    ],
+    "routes": [
+        {
+            "src": "/api/(.*)",
+            "dest": "server.js"
+        },
+        {
+            "src": "/chat_files/(.*)",
+            "dest": "server.js"
+        },
+        {
+            "src": "/(.*\\.(html|css|js|png|jpg|ico|svg|woff2?))",
+            "dest": "/$1"
+        },
+        {
+            "src": "/(.*)",
+            "dest": "server.js"
+        }
+    ]
+}

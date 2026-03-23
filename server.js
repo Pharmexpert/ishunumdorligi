@@ -145,7 +145,30 @@ function authMiddleware(req, res, next) {
     try {
         const decoded = jwt.verify(token, JWT_SECRET);
         db = loadDB();
-        const user = db.users.find(u => u.id === decoded.userId);
+        let user = db.users.find(u => u.id === decoded.userId);
+        // Vercel cold start fix: if JWT is valid but user not in DB, auto-create
+        if (!user && IS_VERCEL) {
+            const now = new Date().toISOString();
+            user = {
+                id: decoded.userId,
+                name: decoded.userId.replace(/^(google|user)_/, ''),
+                email: 'restored@vercel.tmp',
+                password: null,
+                role: 'foydalanuvchi',
+                department: '',
+                status: 'approved',
+                avatar: '?',
+                language: 'uz',
+                authMethod: decoded.userId.startsWith('google') ? 'google' : 'email',
+                created_at: now,
+                last_login: now,
+                _restoredFromJwt: true
+            };
+            if (!db.user_data) db.user_data = {};
+            db.users.push(user);
+            saveDB(db);
+            console.log(`🔄 Auto-restored user from JWT: ${decoded.userId}`);
+        }
         if (!user || user.status !== 'approved')
             return res.status(401).json({ error: 'Фойдаланувчи топилмади ёки тасдиқланмаган' });
         req.user = user;

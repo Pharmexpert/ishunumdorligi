@@ -2089,36 +2089,8 @@ function dashboardCardClick(viewName) {
 }
 
 // ==========================================
-// CHART DATA LABELS — Register plugin to show numbers
+// CHART DATA LABELS — handled by ChartDataLabels plugin in app.js
 // ==========================================
-const chartDataLabelsPlugin = {
-    id: 'customDataLabels',
-    afterDraw(chart) {
-        const { ctx } = chart;
-        chart.data.datasets.forEach((dataset, i) => {
-            const meta = chart.getDatasetMeta(i);
-            if (!meta.hidden) {
-                meta.data.forEach((element, index) => {
-                    const value = dataset.data[index];
-                    if (value === 0 || value === undefined) return;
-                    ctx.save();
-                    ctx.fillStyle = chart.config.type === 'doughnut' ? '#fff' : (dataset.fontColor || '#3D2B1F');
-                    ctx.font = 'bold 11px Inter, sans-serif';
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    const { x, y } = element.tooltipPosition();
-                    ctx.fillText(value, x, y);
-                    ctx.restore();
-                });
-            }
-        });
-    }
-};
-
-// Register the plugin globally for all Chart.js instances
-if (typeof Chart !== 'undefined') {
-    Chart.register(chartDataLabelsPlugin);
-}
 
 // ==========================================
 // IN-APP CHAT WIDGET
@@ -2170,7 +2142,10 @@ function initChatWidget() {
                 <button id="chatBackBtn" onclick="chatShowList()" style="display:none" class="chat-back">←</button>
                 <span id="chatHeaderTitle">💬 Хабарлар</span>
             </div>
-            <button onclick="toggleChat()" class="chat-close">✕</button>
+            <div style="display:flex;gap:4px;align-items:center">
+                <button onclick="chatBroadcastModal()" class="chat-close" title="Оммавий хабар" style="font-size:0.85rem">📢</button>
+                <button onclick="toggleChat()" class="chat-close">✕</button>
+            </div>
         </div>
         <div id="chatBody" class="chat-body"></div>
         <div id="chatInputArea" class="chat-input-area" style="display:none">
@@ -2417,6 +2392,66 @@ async function chatDeleteMsg(msgId) {
         await fetch('/api/chat/message/' + msgId, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token } });
         await chatLoadMessages();
     } catch (e) { showToast('❌ Ўчиришда хато', 'error'); }
+}
+
+// ===== BROADCAST MESSAGE =====
+async function chatBroadcastModal() {
+    const token = getJwtToken();
+    if (!token) return;
+    try {
+        const res = await fetch('/api/chat/users', { headers: { 'Authorization': 'Bearer ' + token } });
+        const data = await res.json();
+        if (!data.users || !data.users.length) { showToast('Фойдаланувчилар топилмади', 'error'); return; }
+        const users = data.users.sort((a, b) => a.name.localeCompare(b.name));
+        openModal('📢 Оммавий хабар', `
+            <p style="color:var(--text-muted);margin-bottom:8px;font-size:0.85rem">Бир нечта фойдаланувчига бир вақтда хабар юборинг:</p>
+            <div style="display:flex;gap:6px;margin-bottom:10px">
+                <button class="btn-sm btn-primary" onclick="document.querySelectorAll('#broadcastUsersList input[type=checkbox]').forEach(c=>c.checked=true)">✅ Барчасини танлаш</button>
+                <button class="btn-sm btn-secondary" onclick="document.querySelectorAll('#broadcastUsersList input[type=checkbox]').forEach(c=>c.checked=false)">❌ Бекор қилиш</button>
+            </div>
+            <div id="broadcastUsersList" style="max-height:200px;overflow-y:auto;margin-bottom:12px;border:1px solid rgba(180,140,100,0.15);border-radius:10px;padding:6px">
+                ${users.map(u => `
+                    <label style="display:flex;align-items:center;gap:8px;padding:6px 8px;cursor:pointer;border-radius:6px" onmouseover="this.style.background='rgba(180,140,100,0.08)'" onmouseout="this.style.background='none'">
+                        <input type="checkbox" value="${u.id}" data-name="${u.name}">
+                        <span style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#C07840,#D4956B);color:white;display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:600">${u.name[0]}</span>
+                        <span style="flex:1">${u.name}</span>
+                        <span style="font-size:0.72rem;color:var(--text-muted)">${u.department || u.role}</span>
+                        ${u.online ? '<span style="width:6px;height:6px;border-radius:50%;background:#3B9B6E"></span>' : ''}
+                    </label>
+                `).join('')}
+            </div>
+            <div class="form-group">
+                <label class="form-label">✉️ Хабар матни</label>
+                <textarea id="broadcastMsg" class="form-input" rows="3" placeholder="Барча танланган фойдаланувчиларга юбориладиган хабар..."></textarea>
+            </div>
+            <div class="form-actions">
+                <button class="btn-secondary" onclick="closeModal()">Бекор</button>
+                <button class="btn-primary" onclick="sendBroadcast()">📢 Юбориш</button>
+            </div>
+        `);
+    } catch (e) { showToast('Хато: ' + e.message, 'error'); }
+}
+
+async function sendBroadcast() {
+    const checkboxes = document.querySelectorAll('#broadcastUsersList input[type=checkbox]:checked');
+    const msg = document.getElementById('broadcastMsg')?.value?.trim();
+    if (!msg) { showToast('Хабар матнини ёзинг', 'error'); return; }
+    if (!checkboxes.length) { showToast('Камида 1 та фойдаланувчи танланг', 'error'); return; }
+
+    const token = getJwtToken();
+    let sent = 0, failed = 0;
+    for (const cb of checkboxes) {
+        try {
+            await fetch('/api/chat/send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+                body: JSON.stringify({ to: cb.value, text: msg })
+            });
+            sent++;
+        } catch (e) { failed++; }
+    }
+    closeModal();
+    showToast(`📢 ${sent} та фойдаланувчига юборилди${failed ? `, ${failed} та хатолик` : ''}`);
 }
 
 async function chatSend() {

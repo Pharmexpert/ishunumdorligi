@@ -31,7 +31,9 @@ const CODE_EXPIRY_MINUTES = 10;
 // ==========================================
 // JSON FILE DATABASE
 // ==========================================
-const DB_PATH = path.join(__dirname, 'data.json');
+// On Vercel, filesystem is read-only except /tmp
+const IS_VERCEL = !!process.env.VERCEL;
+const DB_PATH = IS_VERCEL ? '/tmp/data.json' : path.join(__dirname, 'data.json');
 
 function loadDB() {
     try {
@@ -640,7 +642,7 @@ app.put('/api/shared/data', authMiddleware, (req, res) => {
 // DOCUMENT / EXPERT TEXT SYSTEM
 // ==========================================
 const multer = require('multer');
-const uploadDir = path.join(__dirname, 'uploads');
+const uploadDir = IS_VERCEL ? '/tmp/uploads' : path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 const upload = multer({
     storage: multer.diskStorage({
@@ -1210,7 +1212,7 @@ app.post('/api/chat/send', authMiddleware, (req, res) => {
 });
 
 // Chat file/image upload
-const chatDir = path.join(__dirname, 'chat_files');
+const chatDir = IS_VERCEL ? '/tmp/chat_files' : path.join(__dirname, 'chat_files');
 if (!fs.existsSync(chatDir)) fs.mkdirSync(chatDir, { recursive: true });
 
 app.post('/api/chat/upload', authMiddleware, upload.single('file'), (req, res) => {
@@ -1662,11 +1664,16 @@ app.get('*', (req, res) => {
 // ==========================================
 // START SERVER
 // ==========================================
-app.listen(PORT, () => {
-    console.log(`\n🚀 Ish unumdorligi сервер ишга тушди: http://localhost:${PORT}`);
-    console.log(`📧 SMTP: ${process.env.SMTP_USER} → ${process.env.SMTP_HOST}`);
-    console.log(`🔑 JWT Secret: ${JWT_SECRET.slice(0, 8)}...`);
-    console.log(`📁 DB: ${DB_PATH}`);
-    console.log(`👥 Users: ${db.users.length}`);
-    console.log(`🌐 Site URL: ${SITE_URL}\n`);
-});
+if (!process.env.VERCEL) {
+    app.listen(PORT, () => {
+        console.log(`\n🚀 Ish unumdorligi сервер ишга тушди: http://localhost:${PORT}`);
+        console.log(`📧 SMTP: ${process.env.SMTP_USER} → ${process.env.SMTP_HOST}`);
+        console.log(`🔑 JWT Secret: ${JWT_SECRET.slice(0, 8)}...`);
+        console.log(`📁 DB: ${DB_PATH}`);
+        console.log(`👥 Users: ${db.users.length}`);
+        console.log(`🌐 Site URL: ${SITE_URL}\n`);
+    });
+}
+
+// Export for Vercel serverless
+module.exports = app;

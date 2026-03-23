@@ -300,10 +300,24 @@ function handleTaskToggle(id) {
     const tasks = loadData(STORAGE_KEYS.tasks);
     const t = tasks.find(x => x.id === id);
     if (!t) return;
-    if (t.status === 'bajarildi') { t.status = 'yangi'; t.completedAt = null; }
-    else { t.status = 'bajarildi'; t.completedAt = new Date().toISOString(); t.isFocus = false; }
+    if (t.status === 'bajarildi') {
+        t.status = 'yangi'; t.completedAt = null; t.completedBy = null;
+    } else {
+        t.status = 'bajarildi';
+        t.completedAt = new Date().toISOString();
+        t.completedBy = _authUser.id;
+        t.completedByName = _authUser.name;
+        t.isFocus = false;
+        t.executionPct = 100;
+        // Notify task creator that assignee completed the task
+        if (t.createdBy && t.createdBy !== _authUser.id) {
+            addNotification(t.createdBy, 'task_completed', `✅ "${getTaskName(t)}" бажарилди (${_authUser.name})`, id);
+        }
+    }
     saveData(STORAGE_KEYS.tasks, tasks); renderTasks();
 }
+// Alias for modules.js compatibility
+const toggleTask = handleTaskToggle;
 
 function approveTask(id) {
     const tasks = loadData(STORAGE_KEYS.tasks);

@@ -151,13 +151,13 @@ function authMiddleware(req, res, next) {
             const now = new Date().toISOString();
             user = {
                 id: decoded.userId,
-                name: decoded.userId.replace(/^(google|user)_/, ''),
-                email: 'restored@vercel.tmp',
+                name: decoded.name || decoded.userId.replace(/^(google|user)_/, ''),
+                email: decoded.email || 'restored@vercel.tmp',
                 password: null,
-                role: 'foydalanuvchi',
-                department: '',
+                role: decoded.role || 'foydalanuvchi',
+                department: decoded.department || '',
                 status: 'approved',
-                avatar: '?',
+                avatar: (decoded.name || '?').charAt(0).toUpperCase(),
                 language: 'uz',
                 authMethod: decoded.userId.startsWith('google') ? 'google' : 'email',
                 created_at: now,
@@ -167,7 +167,7 @@ function authMiddleware(req, res, next) {
             if (!db.user_data) db.user_data = {};
             db.users.push(user);
             saveDB(db);
-            console.log(`🔄 Auto-restored user from JWT: ${decoded.userId}`);
+            console.log(`🔄 Auto-restored user from JWT: ${decoded.userId} (${decoded.email || 'no-email'})`);
         }
         if (!user || user.status !== 'approved')
             return res.status(401).json({ error: 'Фойдаланувчи топилмади ёки тасдиқланмаган' });
@@ -251,7 +251,7 @@ app.post('/api/auth/register', async (req, res) => {
             message: `${name} таклифни қабул қилди`, related_id: userId, is_read: 0, created_at: now
         });
         saveDB(db);
-        const jwtToken = jwt.sign({ userId }, JWT_SECRET, { expiresIn: '7d' });
+        const jwtToken = jwt.sign({ userId, name: newUser.name, email: newUser.email, role: newUser.role, department: newUser.department }, JWT_SECRET, { expiresIn: '7d' });
         const user = db.users.find(u => u.id === userId);
         return res.json({ success: true, autoApproved: true, wasInvited: true, token: jwtToken, user: sanitizeUser(user) });
     }
@@ -321,7 +321,7 @@ app.post('/api/auth/login', (req, res) => {
     user.last_login = new Date().toISOString();
     saveDB(db);
 
-    const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '7d' });
+    const token = jwt.sign({ userId: user.id, name: user.name, email: user.email, role: user.role, department: user.department }, JWT_SECRET, { expiresIn: '7d' });
     res.json({ success: true, token, user: sanitizeUser(user) });
 });
 
@@ -388,7 +388,7 @@ app.post('/api/auth/google', async (req, res) => {
             message: `${name || email} таклифни қабул қилди (Google)`, related_id: userId, is_read: 0, created_at: now
         });
         saveDB(db);
-        const token = jwt.sign({ userId }, JWT_SECRET, { expiresIn: '7d' });
+        const token = jwt.sign({ userId, name: name || email.split('@')[0], email, role: 'ishchi', department: invitation.department }, JWT_SECRET, { expiresIn: '7d' });
         return res.json({ success: true, token, user: sanitizeUser(db.users.find(u => u.id === userId)), wasInvited: true });
     }
 
@@ -414,7 +414,7 @@ app.post('/api/auth/google', async (req, res) => {
     });
 
     saveDB(db);
-    const token = jwt.sign({ userId }, JWT_SECRET, { expiresIn: '7d' });
+    const token = jwt.sign({ userId, name: name || email.split('@')[0], email, role: 'foydalanuvchi', department: '' }, JWT_SECRET, { expiresIn: '7d' });
     return res.json({ success: true, token, user: sanitizeUser(db.users.find(u => u.id === userId)), isNewUser: true });
 });
 

@@ -102,8 +102,65 @@ async function signInWithEmail(email, password) {
 }
 
 async function signInWithGoogle() {
+    // Use real Google Identity Services if available
+    if (window.google && window.google.accounts) {
+        return new Promise((resolve) => {
+            google.accounts.id.initialize({
+                client_id: '1069007349621-b47vhi16hf6rdi7phgkga9mobjvfqq3g.apps.googleusercontent.com',
+                callback: async (response) => {
+                    if (!response.credential) {
+                        resolve({ success: false, error: 'Google тасдиқлаш бекор қилинди' });
+                        return;
+                    }
+                    // Send ID token to server for verification
+                    const result = await apiCall('/api/auth/google', {
+                        method: 'POST',
+                        body: JSON.stringify({ credential: response.credential })
+                    });
+                    if (result.success) {
+                        setJwtToken(result.token);
+                        setCurrentUser(result.user);
+                        resolve({ success: true, user: result.user });
+                    } else {
+                        resolve({ success: false, error: result.error });
+                    }
+                },
+                auto_select: false,
+                context: 'signin'
+            });
+            // Show Google One Tap or popup
+            google.accounts.id.prompt((notification) => {
+                if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+                    // Fallback: use popup mode
+                    const btn = document.createElement('div');
+                    btn.id = 'g_id_signin_tmp';
+                    btn.style.cssText = 'position:fixed;top:-9999px';
+                    document.body.appendChild(btn);
+                    google.accounts.id.renderButton(btn, {
+                        type: 'standard', theme: 'outline', size: 'large'
+                    });
+                    // Click the rendered button automatically
+                    setTimeout(() => {
+                        const gBtn = btn.querySelector('[role="button"]') || btn.querySelector('div[data-type]') || btn.firstElementChild;
+                        if (gBtn) gBtn.click();
+                        else {
+                            btn.remove();
+                            // Ultimate fallback: manual email entry
+                            signInWithGoogleFallback().then(resolve);
+                        }
+                    }, 200);
+                    // Cleanup after 60 seconds
+                    setTimeout(() => { if (btn.parentNode) btn.remove(); }, 60000);
+                }
+            });
+        });
+    }
+    // Fallback for environments without Google Identity Services
+    return signInWithGoogleFallback();
+}
+
+async function signInWithGoogleFallback() {
     return new Promise((resolve) => {
-        // Create Google login modal
         const existing = document.getElementById('googleLoginModal');
         if (existing) existing.remove();
 

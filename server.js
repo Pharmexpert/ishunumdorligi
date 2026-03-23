@@ -293,7 +293,22 @@ app.post('/api/auth/login', (req, res) => {
 
 // POST /api/auth/google
 app.post('/api/auth/google', async (req, res) => {
-    let { name, email } = req.body;
+    let { name, email, credential, avatarUrl } = req.body;
+
+    // Verify Google ID token if provided
+    if (credential) {
+        try {
+            const response = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${credential}`);
+            if (!response.ok) return res.status(401).json({ error: 'Google токен тасдиқланмади' });
+            const payload = await response.json();
+            email = payload.email;
+            name = payload.name || payload.given_name || email.split('@')[0];
+            avatarUrl = payload.picture || null;
+        } catch (err) {
+            return res.status(401).json({ error: 'Google аутентификация хатоси' });
+        }
+    }
+
     name = (name || '').trim();
     email = (email || '').trim().toLowerCase();
     if (!email) return res.status(400).json({ error: 'Email киритинг' });
@@ -304,6 +319,7 @@ app.post('/api/auth/google', async (req, res) => {
         if (user.status === 'pending') return res.status(403).json({ error: 'Ҳисобингиз ҳали тасдиқланмаган.' });
         if (user.status === 'rejected') return res.status(403).json({ error: 'Ҳисобингиз рад этилган.' });
         user.last_login = new Date().toISOString();
+        if (avatarUrl) user.avatarUrl = avatarUrl;
         saveDB(db);
         const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '7d' });
         return res.json({ success: true, token, user: sanitizeUser(user) });
@@ -317,7 +333,7 @@ app.post('/api/auth/google', async (req, res) => {
         db.users.push({
             id: userId, name: name || email.split('@')[0], email, password: null,
             role: 'ishchi', department: invitation.department, status: 'approved',
-            avatar: (name || email).charAt(0).toUpperCase(), language: 'uz',
+            avatar: (name || email).charAt(0).toUpperCase(), avatarUrl: avatarUrl || null, language: 'uz',
             invited_by: invitation.invited_by, created_at: now, last_login: now,
             tasks_created: 0, tasks_completed: 0, avg_productivity: 0
         });
@@ -335,7 +351,7 @@ app.post('/api/auth/google', async (req, res) => {
     db.users.push({
         id: userId, name: name || email.split('@')[0], email, password: null,
         role: 'foydalanuvchi', department: '', status: 'pending',
-        avatar: (name || email).charAt(0).toUpperCase(), language: 'uz',
+        avatar: (name || email).charAt(0).toUpperCase(), avatarUrl: avatarUrl || null, language: 'uz',
         invited_by: null, created_at: now, last_login: now,
         tasks_created: 0, tasks_completed: 0, avg_productivity: 0
     });
@@ -1417,7 +1433,7 @@ app.post('/api/admin/restore', authMiddleware, express.json({ limit: '50mb' }), 
 // List available backups
 app.get('/api/admin/backups', authMiddleware, (req, res) => {
     if (req.user.role !== 'admin') return res.status(403).json({ error: 'Фақат админ' });
-    const backupDir = path.join(__dirname, 'backups');
+    const backupDir = IS_VERCEL ? '/tmp/backups' : path.join(__dirname, 'backups');
     if (!fs.existsSync(backupDir)) return res.json({ backups: [] });
     const files = fs.readdirSync(backupDir).filter(f => f.endsWith('.json')).sort().reverse();
     res.json({ backups: files });
@@ -1426,12 +1442,12 @@ app.get('/api/admin/backups', authMiddleware, (req, res) => {
 // Restore from specific backup
 app.post('/api/admin/restore/:backupName', authMiddleware, (req, res) => {
     if (req.user.role !== 'admin') return res.status(403).json({ error: 'Фақат админ' });
-    const backupPath = path.join(__dirname, 'backups', req.params.backupName);
+    const backupPath = (IS_VERCEL ? '/tmp/backups/' : path.join(__dirname, 'backups') + '/') + req.params.backupName;
     if (!fs.existsSync(backupPath)) return res.status(404).json({ error: 'Бекап топилмади' });
     try {
         // Save current state first
         db = loadDB();
-        const backupDir = path.join(__dirname, 'backups');
+        const backupDir = IS_VERCEL ? '/tmp/backups' : path.join(__dirname, 'backups');
         fs.writeFileSync(path.join(backupDir, `pre_restore_${Date.now()}.json`), JSON.stringify(db, null, 2));
         // Restore
         const data = JSON.parse(fs.readFileSync(backupPath, 'utf-8'));

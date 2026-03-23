@@ -171,8 +171,8 @@ function renderTaskList(c) {
                 ` : ''}
                 ${task.status === 'bajarildi' ? `<span style="color:var(--success);font-weight:600;font-size:0.8rem">✅ Тайёр</span>` : ''}
                 <button class="btn-sm" onclick="showCommentsModal('${task.id}')">💬</button>
-                ${canCreateTasks(_authUser) ? `<button class="btn-sm" onclick="showTaskModal('${task.id}')">✏️</button>` : ''}
-                ${canDelegate(_authUser) ? `<button class="btn-sm btn-danger" onclick="deleteTask('${task.id}')">🗑</button>` : ''}
+                ${(task.createdBy === _authUser.id || task.assignedTo === _authUser.id || canCreateTasks(_authUser)) ? `<button class="btn-sm" onclick="showTaskModal('${task.id}')">✏️</button>` : ''}
+                ${(task.createdBy === _authUser.id || canDelegate(_authUser)) ? `<button class="btn-sm btn-danger" onclick="deleteTask('${task.id}')">🗑</button>` : ''}
             </div>
         </div>`;
     }).join('');

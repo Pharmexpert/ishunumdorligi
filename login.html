@@ -625,14 +625,10 @@
             const token = getJwtToken();
             const user = getCurrentUser();
             if (token && user) {
-                try {
-                    const result = await apiCall('/api/auth/me');
-                    if (result.success && result.user && result.user.status === 'approved') {
-                        window.location.href = 'index.html';
-                        return;
-                    }
-                } catch (e) { }
-                clearJwtToken();
+                // Trust localStorage — JWT token is cryptographically signed
+                // Don't call /api/auth/me here — Vercel cold starts may lose user data
+                window.location.href = 'index.html';
+                return;
             }
 
             // Process invitation token

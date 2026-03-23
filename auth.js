@@ -488,6 +488,7 @@ function getApprovedUsers() {
 }
 
 // ===== AUTH CHECK =====
+let _authMeRetries = 0;
 function requireAuth() {
     // Allow guest users
     if (localStorage.getItem('hb_guest_mode') === 'true') {
@@ -500,11 +501,20 @@ function requireAuth() {
         window.location.href = 'login.html';
         return null;
     }
-    // Async refresh in background
+    // Async refresh in background — DON'T redirect on failure
+    // Vercel serverless may lose /tmp/data.json between cold starts
     fetchCurrentUser().then(freshUser => {
-        if (!freshUser) {
-            clearJwtToken();
-            window.location.href = 'login.html';
+        if (freshUser) {
+            _authMeRetries = 0; // Reset on success
+        } else {
+            _authMeRetries++;
+            console.warn(`⚠️ /api/auth/me failed (attempt ${_authMeRetries}). Using local user.`);
+            // Only redirect after many consecutive failures (user truly invalid)
+            // Don't redirect on first failures — Vercel cold start issue
+            if (_authMeRetries >= 5) {
+                clearJwtToken();
+                window.location.href = 'login.html';
+            }
         }
     });
     // Also fetch users cache for department helpers

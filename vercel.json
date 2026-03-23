@@ -4,9 +4,69 @@
         {
             "src": "server.js",
             "use": "@vercel/node"
+        },
+        {
+            "src": "login.html",
+            "use": "@vercel/static"
+        },
+        {
+            "src": "index.html",
+            "use": "@vercel/static"
+        },
+        {
+            "src": "style.css",
+            "use": "@vercel/static"
+        },
+        {
+            "src": "auth.js",
+            "use": "@vercel/static"
+        },
+        {
+            "src": "app.js",
+            "use": "@vercel/static"
+        },
+        {
+            "src": "app2.js",
+            "use": "@vercel/static"
+        },
+        {
+            "src": "admin.js",
+            "use": "@vercel/static"
+        },
+        {
+            "src": "i18n.js",
+            "use": "@vercel/static"
+        },
+        {
+            "src": "modules.js",
+            "use": "@vercel/static"
         }
     ],
     "routes": [
+        {
+            "src": "/api/(.*)",
+            "dest": "server.js"
+        },
+        {
+            "src": "/chat_files/(.*)",
+            "dest": "server.js"
+        },
+        {
+            "src": "/(login|index)\\.html",
+            "dest": "/$1.html"
+        },
+        {
+            "src": "/style\\.css",
+            "dest": "/style.css"
+        },
+        {
+            "src": "/(auth|app|app2|admin|i18n|modules)\\.js",
+            "dest": "/$1.js"
+        },
+        {
+            "src": "/",
+            "dest": "/login.html"
+        },
         {
             "src": "/(.*)",
             "dest": "server.js"

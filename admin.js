@@ -26,19 +26,19 @@ function renderAdminUsers(allUsers) {
 
     const statsEl = document.getElementById('adminStats');
     if (statsEl) statsEl.innerHTML = `
-        <div class="stat-card"><div class="stat-icon purple"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg></div>
+        <div class="stat-card" style="cursor:pointer;transition:all 0.2s" onclick="adminFilterByCard('all')" title="Ҳаммасини кўрсатиш"><div class="stat-icon purple"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg></div>
         <div class="stat-info"><div class="stat-label">Жами</div><div class="stat-value">${total}</div></div></div>
 
-        <div class="stat-card"><div class="stat-icon green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
+        <div class="stat-card" style="cursor:pointer;transition:all 0.2s" onclick="adminFilterByCard('approved')" title="Тасдиқланганларни кўрсатиш"><div class="stat-icon green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
         <div class="stat-info"><div class="stat-label">Тасдиқланган</div><div class="stat-value">${approved}</div></div></div>
 
-        <div class="stat-card"><div class="stat-icon yellow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+        <div class="stat-card" style="cursor:pointer;transition:all 0.2s" onclick="adminFilterByCard('pending')" title="Кутилаётганларни кўрсатиш"><div class="stat-icon yellow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
         <div class="stat-info"><div class="stat-label">Кутилмоқда</div><div class="stat-value">${pending}</div></div></div>
 
-        <div class="stat-card"><div class="stat-icon" style="background:rgba(196,77,77,0.1);color:#C44D4D"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div>
+        <div class="stat-card" style="cursor:pointer;transition:all 0.2s" onclick="adminFilterByCard('rejected')" title="Рад этилганларни кўрсатиш"><div class="stat-icon" style="background:rgba(196,77,77,0.1);color:#C44D4D"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div>
         <div class="stat-info"><div class="stat-label">Рад этилган</div><div class="stat-value">${rejected}</div></div></div>
 
-        <div class="stat-card"><div class="stat-icon" style="background:rgba(66,133,244,0.1);color:#4285F4"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg></div>
+        <div class="stat-card" style="cursor:pointer;transition:all 0.2s" onclick="adminFilterByCard('google')" title="Google фойдаланувчиларни кўрсатиш"><div class="stat-icon" style="background:rgba(66,133,244,0.1);color:#4285F4"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg></div>
         <div class="stat-info"><div class="stat-label">Google</div><div class="stat-value">${googleUsers}</div></div></div>`;
 
     const roleBadge = r => {
@@ -63,7 +63,7 @@ function renderAdminUsers(allUsers) {
             : `<div class="user-avatar">${u.avatar || u.name?.charAt(0) || '?'}</div>`;
         const fullName = [u.firstName, u.lastName].filter(Boolean).join(' ');
         html += `
-        <div class="admin-user-card" data-status="${u.status}" data-role="${u.role}">
+        <div class="admin-user-card" data-status="${u.status}" data-role="${u.role}" data-auth="${u.authMethod || 'password'}">
             ${avatarHtml}
             <div class="user-info">
                 <div class="user-name">${u.name}${fullName && fullName !== u.name ? ` <span style="color:#9C8B7A;font-size:0.8rem">(${fullName})</span>` : ''}</div>
@@ -103,6 +103,37 @@ function renderAdminUsers(allUsers) {
     };
     if (filterRole) filterRole.onchange = applyFilters;
     if (filterStatus) filterStatus.onchange = applyFilters;
+}
+
+function adminFilterByCard(filter) {
+    // Highlight active stat card
+    document.querySelectorAll('#adminStats .stat-card').forEach(card => {
+        card.style.outline = 'none';
+        card.style.transform = 'scale(1)';
+    });
+    const cardIndex = { all: 0, approved: 1, pending: 2, rejected: 3, google: 4 };
+    const cards = document.querySelectorAll('#adminStats .stat-card');
+    if (cards[cardIndex[filter]]) {
+        cards[cardIndex[filter]].style.outline = '2px solid #C07840';
+        cards[cardIndex[filter]].style.transform = 'scale(1.03)';
+    }
+
+    // Filter user cards
+    document.querySelectorAll('.admin-user-card').forEach(card => {
+        if (filter === 'all') {
+            card.style.display = '';
+        } else if (filter === 'google') {
+            card.style.display = card.dataset.auth === 'google' ? '' : 'none';
+        } else {
+            card.style.display = card.dataset.status === filter ? '' : 'none';
+        }
+    });
+
+    // Sync dropdown filters
+    const filterStatus = document.getElementById('adminFilterStatus');
+    if (filterStatus && filter !== 'google') {
+        filterStatus.value = filter === 'all' ? 'all' : filter;
+    }
 }
 
 function renderAdminStats(users) {

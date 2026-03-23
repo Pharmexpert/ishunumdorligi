@@ -981,7 +981,7 @@ app.post('/api/notifications/send', authMiddleware, leaderOrAdmin, (req, res) =>
 // ==========================================
 // FILE MANAGER (Local Drive)
 // ==========================================
-const driveDir = path.join(__dirname, 'uploads', 'drive');
+const driveDir = IS_VERCEL ? '/tmp/uploads/drive' : path.join(__dirname, 'uploads', 'drive');
 if (!fs.existsSync(driveDir)) fs.mkdirSync(driveDir, { recursive: true });
 
 function getDriveFiles() {
@@ -1394,7 +1394,7 @@ app.get('/api/admin/backup', authMiddleware, (req, res) => {
     db = loadDB();
     // Save timestamped backup
     const backupName = `backup_${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
-    const backupDir = path.join(__dirname, 'backups');
+    const backupDir = IS_VERCEL ? '/tmp/backups' : path.join(__dirname, 'backups');
     if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
     fs.writeFileSync(path.join(backupDir, backupName), JSON.stringify(db, null, 2));
     res.json({ success: true, backup: backupName, data: db });
@@ -1405,7 +1405,7 @@ app.post('/api/admin/restore', authMiddleware, express.json({ limit: '50mb' }), 
     const { data } = req.body;
     if (!data || !data.users) return res.status(400).json({ error: 'Нотўғри маълумот' });
     // Save current as backup first
-    const backupDir = path.join(__dirname, 'backups');
+    const backupDir = IS_VERCEL ? '/tmp/backups' : path.join(__dirname, 'backups');
     if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
     db = loadDB();
     fs.writeFileSync(path.join(backupDir, `pre_restore_${Date.now()}.json`), JSON.stringify(db, null, 2));

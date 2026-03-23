@@ -1,0 +1,10 @@
+.env
+node_modules/
+data.db
+*.db-journal
+data.json
+credentials.json
+client_secret_*.json
+excel_analysis.json
+uploads/
+*.resolved

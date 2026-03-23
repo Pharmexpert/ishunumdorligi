@@ -1,0 +1,1009 @@
+<!DOCTYPE html>
+<html lang="uz">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kirish — Ish unumdorligi</title>
+    <meta name="description" content="Ish unumdorligi платформасига кириш ва рўйхатдан ўтиш">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <style>
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            min-height: 100vh;
+            background: #FFF8F0;
+            background-image:
+                radial-gradient(ellipse at 20% 50%, rgba(192, 120, 64, 0.06) 0%, transparent 60%),
+                radial-gradient(ellipse at 80% 20%, rgba(212, 149, 107, 0.06) 0%, transparent 60%),
+                radial-gradient(ellipse at 50% 100%, rgba(232, 183, 142, 0.06) 0%, transparent 60%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            color: #3D2B1F;
+        }
+
+        .login-container {
+            width: 100%;
+            max-width: 440px;
+            animation: fadeUp 0.5s ease;
+        }
+
+        @keyframes fadeUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.05);
+            }
+        }
+
+        .login-card {
+            background: rgba(255, 251, 245, 0.95);
+            border: 1px solid rgba(180, 140, 100, 0.12);
+            border-radius: 20px;
+            padding: 40px 36px;
+            box-shadow: 0 8px 40px rgba(120, 80, 40, 0.08);
+            backdrop-filter: blur(16px);
+        }
+
+        .login-logo {
+            text-align: center;
+            margin-bottom: 28px;
+        }
+
+        .login-logo-icon {
+            width: 56px;
+            height: 56px;
+            background: linear-gradient(135deg, #C07840, #D4956B, #E8B78E);
+            border-radius: 14px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 16px rgba(192, 120, 64, 0.25);
+            margin-bottom: 16px;
+        }
+
+        .login-logo-icon svg {
+            width: 28px;
+            height: 28px;
+            color: white;
+        }
+
+        .login-title {
+            font-size: 1.5rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #C07840, #D4956B);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .login-subtitle {
+            color: #6B5744;
+            font-size: 0.9rem;
+            margin-top: 6px;
+        }
+
+        .invite-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            background: rgba(59, 155, 110, 0.1);
+            color: #3B9B6E;
+            border: 1px solid rgba(59, 155, 110, 0.15);
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-top: 10px;
+            animation: pulse 2s ease infinite;
+        }
+
+        .lang-switch {
+            display: flex;
+            justify-content: center;
+            gap: 6px;
+            margin-bottom: 24px;
+        }
+
+        .lang-btn-login {
+            padding: 6px 14px;
+            background: transparent;
+            color: #9C8B7A;
+            border: 1px solid rgba(180, 140, 100, 0.12);
+            border-radius: 8px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.25s;
+        }
+
+        .lang-btn-login:hover {
+            color: #3D2B1F;
+            border-color: rgba(180, 140, 100, 0.25);
+        }
+
+        .lang-btn-login.active {
+            background: #C07840;
+            color: white;
+            border-color: #C07840;
+        }
+
+        .google-btn {
+            width: 100%;
+            padding: 14px;
+            background: white;
+            border: 1px solid rgba(180, 140, 100, 0.15);
+            border-radius: 12px;
+            font-size: 0.92rem;
+            font-weight: 600;
+            color: #3D2B1F;
+            cursor: pointer;
+            font-family: inherit;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            transition: all 0.25s;
+            box-shadow: 0 1px 4px rgba(120, 80, 40, 0.06);
+        }
+
+        .google-btn:hover {
+            box-shadow: 0 4px 16px rgba(120, 80, 40, 0.1);
+            transform: translateY(-1px);
+        }
+
+        .google-btn svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        .divider {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin: 24px 0;
+            color: #9C8B7A;
+            font-size: 0.82rem;
+        }
+
+        .divider::before,
+        .divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: rgba(180, 140, 100, 0.12);
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: #6B5744;
+            margin-bottom: 6px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 12px 16px;
+            background: white;
+            color: #3D2B1F;
+            border: 1px solid rgba(180, 140, 100, 0.12);
+            border-radius: 10px;
+            font-size: 0.9rem;
+            font-family: inherit;
+            transition: all 0.25s;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #C07840;
+            box-shadow: 0 0 0 3px rgba(192, 120, 64, 0.15);
+        }
+
+        .form-input::placeholder {
+            color: #B8A898;
+        }
+
+        .form-input:disabled {
+            background: #F5EDE4;
+            color: #9C8B7A;
+            cursor: not-allowed;
+        }
+
+        .form-select {
+            width: 100%;
+            padding: 12px 16px;
+            background: white;
+            color: #3D2B1F;
+            border: 1px solid rgba(180, 140, 100, 0.12);
+            border-radius: 10px;
+            font-size: 0.9rem;
+            font-family: inherit;
+            cursor: pointer;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .login-btn {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #C07840, #D4956B, #E8B78E);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 0.95rem;
+            font-weight: 700;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.25s;
+            box-shadow: 0 4px 16px rgba(192, 120, 64, 0.25);
+            margin-top: 8px;
+        }
+
+        .login-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 24px rgba(192, 120, 64, 0.3);
+        }
+
+        .login-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .switch-mode {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 0.85rem;
+            color: #6B5744;
+        }
+
+        .switch-mode a {
+            color: #C07840;
+            font-weight: 600;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .switch-mode a:hover {
+            text-decoration: underline;
+        }
+
+        .alert-msg {
+            padding: 12px 16px;
+            border-radius: 10px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            margin-bottom: 16px;
+            display: none;
+        }
+
+        .alert-msg.error {
+            background: rgba(196, 77, 77, 0.1);
+            color: #C44D4D;
+            border: 1px solid rgba(196, 77, 77, 0.15);
+            display: block;
+        }
+
+        .alert-msg.success {
+            background: rgba(59, 155, 110, 0.1);
+            color: #3B9B6E;
+            border: 1px solid rgba(59, 155, 110, 0.15);
+            display: block;
+        }
+
+        .alert-msg.warning {
+            background: rgba(212, 147, 14, 0.1);
+            color: #B87D00;
+            border: 1px solid rgba(212, 147, 14, 0.15);
+            display: block;
+        }
+
+        /* Verification Code Input */
+        .code-input-group {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            margin: 20px 0;
+        }
+
+        .code-digit {
+            width: 48px;
+            height: 56px;
+            text-align: center;
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: #3D2B1F;
+            background: white;
+            border: 2px solid rgba(180, 140, 100, 0.15);
+            border-radius: 12px;
+            font-family: inherit;
+            transition: all 0.25s;
+        }
+
+        .code-digit:focus {
+            outline: none;
+            border-color: #C07840;
+            box-shadow: 0 0 0 3px rgba(192, 120, 64, 0.15);
+        }
+
+        .verify-info {
+            text-align: center;
+            color: #6B5744;
+            font-size: 0.85rem;
+            line-height: 1.6;
+            margin-bottom: 16px;
+        }
+
+        .verify-info strong {
+            color: #C07840;
+        }
+
+        .verify-timer {
+            text-align: center;
+            font-size: 0.8rem;
+            color: #9C8B7A;
+            margin-top: 12px;
+        }
+
+
+
+        .loading-spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        @media (max-width: 480px) {
+            .login-card {
+                padding: 28px 22px;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .code-digit {
+                width: 42px;
+                height: 48px;
+                font-size: 1.2rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="login-container">
+        <div class="login-card">
+            <div class="login-logo">
+                <div class="login-logo-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10" />
+                        <polyline points="12 6 12 12 16 14" />
+                    </svg>
+                </div>
+                <h1 class="login-title">Ish unumdorligi <sup
+                        style="font-size:0.45em;opacity:0.5;font-weight:400">v.1</sup></h1>
+                <p class="login-subtitle" id="authSubtitle">Иш бошқарув тизимига киринг</p>
+                <div id="inviteBadge" class="invite-badge" style="display:none">
+                    ✉️ <span id="inviteBadgeText">Сиз таклиф қилиндингиз!</span>
+                </div>
+            </div>
+
+            <div class="lang-switch">
+                <button class="lang-btn-login active" data-lang="uz" onclick="switchLoginLang('uz')">🇺🇿
+                    O'zbekcha</button>
+                <button class="lang-btn-login" data-lang="en" onclick="switchLoginLang('en')">🇬🇧 English</button>
+                <button class="lang-btn-login" data-lang="ru" onclick="switchLoginLang('ru')">🇷🇺 Русский</button>
+            </div>
+
+            <div id="alertBox" class="alert-msg"></div>
+
+            <!-- LOGIN FORM -->
+            <div id="loginForm">
+                <button class="google-btn" onclick="handleGoogleLogin()">
+                    <svg viewBox="0 0 24 24">
+                        <path
+                            d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"
+                            fill="#4285F4" />
+                        <path
+                            d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                            fill="#34A853" />
+                        <path
+                            d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+                            fill="#FBBC05" />
+                        <path
+                            d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                            fill="#EA4335" />
+                    </svg>
+                    <span id="googleBtnText">Google орқали кириш</span>
+                </button>
+
+                <div class="divider"><span id="orText">ёки</span></div>
+
+                <div class="form-group">
+                    <label class="form-label" id="lblEmail">Email</label>
+                    <input class="form-input" type="email" id="loginEmail" placeholder="email@example.com">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" id="lblPassword">Парол</label>
+                    <input class="form-input" type="password" id="loginPassword" placeholder="••••••••">
+                </div>
+                <button class="login-btn" id="loginBtn" onclick="handleEmailLogin()">Кириш</button>
+                <div style="text-align:center;margin-top:10px">
+                    <a onclick="showForgotPassword()"
+                        style="color:#C07840;font-size:0.82rem;cursor:pointer;text-decoration:underline"
+                        id="forgotPwLink">Паролни унутдингизми?</a>
+                </div>
+                <div class="switch-mode">
+                    <span id="noAccountText">Ҳисобингиз йўқми?</span> <a onclick="showRegister()"
+                        id="switchToRegister">Рўйхатдан ўтиш</a>
+                </div>
+            </div>
+
+            <!-- FORGOT PASSWORD FORM -->
+            <div id="forgotForm" style="display:none">
+                <!-- Step 1: Enter email -->
+                <div id="forgotStep1">
+                    <div style="text-align:center;margin-bottom:20px">
+                        <div style="font-size:2rem">🔐</div>
+                        <h3 style="margin:8px 0;color:var(--text-primary)" id="forgotTitle">Паролни тиклаш</h3>
+                        <p style="color:var(--text-muted);font-size:0.82rem" id="forgotDesc">Email манзилингизни
+                            киритинг</p>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Email</label>
+                        <input class="form-input" type="email" id="forgotEmail" placeholder="email@example.com">
+                    </div>
+                    <button class="login-btn" onclick="handleForgotPassword()" id="forgotSendBtn">📧 Код юбориш</button>
+                </div>
+                <!-- Step 2: Enter code -->
+                <div id="forgotStep2" style="display:none">
+                    <div style="text-align:center;margin-bottom:20px">
+                        <div style="font-size:2rem">📬</div>
+                        <h3 style="margin:8px 0;color:var(--text-primary)">Кодни киритинг</h3>
+                        <p style="color:var(--text-muted);font-size:0.82rem">Почтангизга юборилган 6 рақамли кодни
+                            киритинг</p>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Тиклаш коди</label>
+                        <input class="form-input" type="text" id="resetCode" placeholder="123456" maxlength="6"
+                            style="text-align:center;font-size:1.5rem;letter-spacing:8px;font-weight:700">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Янги парол (камида 8 белги)</label>
+                        <input class="form-input" type="password" id="newPassword" placeholder="••••••••" minlength="8">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Паролни тасдиқланг</label>
+                        <input class="form-input" type="password" id="newPasswordConfirm" placeholder="••••••••">
+                    </div>
+                    <button class="login-btn" onclick="handleResetPassword()" id="resetPwBtn">🔑 Паролни
+                        ўзгартириш</button>
+                </div>
+                <div class="switch-mode" style="margin-top:14px">
+                    <a onclick="showLogin()" style="cursor:pointer;color:#C07840" id="backToLoginFromForgot">⬅ Кириш
+                        саҳифасига қайтиш</a>
+                </div>
+            </div>
+
+            <!-- REGISTER FORM -->
+            <div id="registerForm" style="display:none">
+                <div class="form-group">
+                    <label class="form-label" id="lblRegName">Исм-фамилия</label>
+                    <input class="form-input" type="text" id="regName" placeholder="Исм Фамилия">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" id="lblRegEmail">Email</label>
+                    <input class="form-input" type="email" id="regEmail" placeholder="email@example.com">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label" id="lblRegPassword">Парол (камида 8 белги)</label>
+                        <input class="form-input" type="password" id="regPassword" placeholder="••••••••" minlength="8">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" id="lblRegConfirm">Паролни тасдиқланг</label>
+                        <input class="form-input" type="password" id="regConfirm" placeholder="••••••••">
+                    </div>
+                </div>
+                <div class="form-group" id="deptGroup">
+                    <label class="form-label" id="lblRegDept">Бўлим</label>
+                    <select class="form-select" id="regDepartment">
+                        <option value="Davlat farmakopeyasi ishlab chiqish bo'limi">Давлат фармакопеяси ишлаб чиқиш
+                            бўлими</option>
+                        <option value="Sifat nazorati bo'limi">Сифат назорати бўлими</option>
+                        <option value="Standartlashtirish bo'limi">Стандартлаштириш бўлими</option>
+                        <option value="Ilmiy-tadqiqot bo'limi">Илмий-тадқиқот бўлими</option>
+                        <option value="Boshqa">Бошқа</option>
+                    </select>
+                </div>
+                <button class="login-btn" id="registerBtn" onclick="handleRegister()">Рўйхатдан ўтиш</button>
+                <div class="switch-mode">
+                    <span id="hasAccountText">Ҳисобингиз борми?</span> <a onclick="showLogin()"
+                        id="switchToLogin">Кириш</a>
+                </div>
+            </div>
+
+            <!-- VERIFICATION CODE FORM -->
+            <div id="verifyForm" style="display:none">
+                <p class="verify-info">
+                    📧 <span id="verifyInfoText">Тасдиқлаш коди юборилди</span><br>
+                    <strong id="verifyEmail"></strong>
+                </p>
+                <div class="code-input-group" id="codeInputGroup">
+                    <input class="code-digit" type="text" maxlength="1" inputmode="numeric" data-index="0">
+                    <input class="code-digit" type="text" maxlength="1" inputmode="numeric" data-index="1">
+                    <input class="code-digit" type="text" maxlength="1" inputmode="numeric" data-index="2">
+                    <input class="code-digit" type="text" maxlength="1" inputmode="numeric" data-index="3">
+                    <input class="code-digit" type="text" maxlength="1" inputmode="numeric" data-index="4">
+                    <input class="code-digit" type="text" maxlength="1" inputmode="numeric" data-index="5">
+                </div>
+                <button class="login-btn" id="verifyBtn" onclick="handleVerifyCode()">Тасдиқлаш</button>
+                <div class="verify-timer" id="verifyTimer">Код 10 дақиқа ичида яроқли</div>
+                <div class="switch-mode" style="margin-top:16px">
+                    <a onclick="showLogin()">← Кириш саҳифасига қайтиш</a>
+                </div>
+            </div>
+
+
+        </div>
+    </div>
+
+    <script src="i18n.js"></script>
+    <script src="auth.js"></script>
+    <script>
+        // State
+        let inviteToken = null;
+        let inviteData = null;
+        let pendingEmail = '';
+        let isLoading = false;
+
+        // Check URL for invitation token
+        const urlParams = new URLSearchParams(window.location.search);
+        const tokenParam = urlParams.get('token');
+
+        // Check if already logged in
+        (async () => {
+            const token = getJwtToken();
+            const user = getCurrentUser();
+            if (token && user) {
+                try {
+                    const result = await apiCall('/api/auth/me');
+                    if (result.success && result.user && result.user.status === 'approved') {
+                        window.location.href = 'index.html';
+                        return;
+                    }
+                } catch (e) { }
+                clearJwtToken();
+            }
+
+            // Process invitation token
+            if (tokenParam) {
+                await processInviteToken(tokenParam);
+            }
+        })();
+
+        // Init lang
+        const savedLang = localStorage.getItem('hb_lang') || 'uz';
+        switchLoginLang(savedLang);
+
+        async function processInviteToken(token) {
+            try {
+                const result = await apiCall('/api/invitation/' + token);
+                if (result.success && result.valid) {
+                    inviteToken = token;
+                    inviteData = result;
+                    // Show invite badge
+                    document.getElementById('inviteBadge').style.display = 'inline-flex';
+                    document.getElementById('inviteBadgeText').textContent = 'Сиз таклиф қилиндингиз!';
+                    // Switch to register with pre-filled email
+                    showRegister();
+                    document.getElementById('regEmail').value = result.email;
+                    document.getElementById('regEmail').disabled = true;
+                    // Hide department selector since invite has department
+                    if (result.department) {
+                        document.getElementById('deptGroup').style.display = 'none';
+                    }
+                } else {
+                    showAlert(result.error || 'Таклифнома яроқсиз', 'error');
+                }
+            } catch (e) {
+                showAlert('Таклифномани текшириб бўлмади', 'error');
+            }
+        }
+
+        function setLoading(btn, loading) {
+            isLoading = loading;
+            btn.disabled = loading;
+            if (loading) {
+                btn._text = btn.textContent;
+                btn.innerHTML = '<span class="loading-spinner"></span>Юкланмоқда...';
+            } else {
+                btn.textContent = btn._text || btn.textContent;
+            }
+        }
+
+        function showAlert(msg, type) {
+            const box = document.getElementById('alertBox');
+            box.className = 'alert-msg ' + type;
+            box.textContent = msg;
+            box.style.display = 'block';
+        }
+
+        function hideAlert() {
+            document.getElementById('alertBox').style.display = 'none';
+        }
+
+        function showLogin() {
+            document.getElementById('loginForm').style.display = 'block';
+            document.getElementById('registerForm').style.display = 'none';
+            document.getElementById('verifyForm').style.display = 'none';
+            document.getElementById('forgotForm').style.display = 'none';
+            hideAlert();
+        }
+
+        function showRegister() {
+            document.getElementById('loginForm').style.display = 'none';
+            document.getElementById('registerForm').style.display = 'block';
+            document.getElementById('verifyForm').style.display = 'none';
+            document.getElementById('forgotForm').style.display = 'none';
+            hideAlert();
+        }
+
+        function showVerify(email) {
+            document.getElementById('loginForm').style.display = 'none';
+            document.getElementById('registerForm').style.display = 'none';
+            document.getElementById('verifyForm').style.display = 'block';
+            document.getElementById('forgotForm').style.display = 'none';
+            document.getElementById('verifyEmail').textContent = email;
+            pendingEmail = email;
+            hideAlert();
+            // Focus first digit
+            document.querySelector('.code-digit[data-index="0"]').focus();
+            // Start timer
+            startVerifyTimer();
+        }
+
+        let _forgotEmail = '';
+
+        function showForgotPassword() {
+            document.getElementById('loginForm').style.display = 'none';
+            document.getElementById('registerForm').style.display = 'none';
+            document.getElementById('verifyForm').style.display = 'none';
+            document.getElementById('forgotForm').style.display = 'block';
+            document.getElementById('forgotStep1').style.display = 'block';
+            document.getElementById('forgotStep2').style.display = 'none';
+            hideAlert();
+        }
+
+        async function handleForgotPassword() {
+            const email = document.getElementById('forgotEmail').value.trim().toLowerCase();
+            if (!email) { showAlert('Email киритинг', 'error'); return; }
+
+            const btn = document.getElementById('forgotSendBtn');
+            btn.textContent = '⏳ Юборилмоқда...';
+            btn.disabled = true;
+
+            try {
+                const res = await fetch('/api/auth/forgot-password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    _forgotEmail = email;
+                    showAlert('✅ ' + data.message, 'success');
+                    document.getElementById('forgotStep1').style.display = 'none';
+                    document.getElementById('forgotStep2').style.display = 'block';
+                    document.getElementById('resetCode').focus();
+                } else {
+                    showAlert('❌ ' + data.error, 'error');
+                }
+            } catch (err) {
+                showAlert('❌ ' + err.message, 'error');
+            }
+            btn.textContent = '📧 Код юбориш';
+            btn.disabled = false;
+        }
+
+        async function handleResetPassword() {
+            const code = document.getElementById('resetCode').value.trim();
+            const pw = document.getElementById('newPassword').value;
+            const confirm = document.getElementById('newPasswordConfirm').value;
+
+            if (!code || !pw) { showAlert('Барча майдонларни тўлдиринг', 'error'); return; }
+            if (pw.length < 8) { showAlert('Парол камида 8 белгидан иборат бўлсин', 'error'); return; }
+            if (pw !== confirm) { showAlert('Пароллар мос келмади', 'error'); return; }
+
+            const btn = document.getElementById('resetPwBtn');
+            btn.textContent = '⏳ Кутинг...';
+            btn.disabled = true;
+
+            try {
+                const res = await fetch('/api/auth/reset-password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: _forgotEmail, code, newPassword: pw })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showAlert('✅ ' + data.message, 'success');
+                    setTimeout(() => showLogin(), 2000);
+                } else {
+                    showAlert('❌ ' + data.error, 'error');
+                }
+            } catch (err) {
+                showAlert('❌ ' + err.message, 'error');
+            }
+            btn.textContent = '🔑 Паролни ўзгартириш';
+            btn.disabled = false;
+        }
+
+        let verifyTimerInterval = null;
+        function startVerifyTimer() {
+            let seconds = 600; // 10 minutes
+            const timerEl = document.getElementById('verifyTimer');
+            if (verifyTimerInterval) clearInterval(verifyTimerInterval);
+            verifyTimerInterval = setInterval(() => {
+                seconds--;
+                const min = Math.floor(seconds / 60);
+                const sec = seconds % 60;
+                timerEl.textContent = `Код яроқлилик муддати: ${min}:${sec.toString().padStart(2, '0')}`;
+                if (seconds <= 0) {
+                    clearInterval(verifyTimerInterval);
+                    timerEl.textContent = 'Код муддати ўтди. Қайтадан рўйхатдан ўтинг.';
+                    timerEl.style.color = '#C44D4D';
+                }
+            }, 1000);
+        }
+
+        // Code digit inputs behavior
+        document.querySelectorAll('.code-digit').forEach((input, idx, inputs) => {
+            input.addEventListener('input', (e) => {
+                const val = e.target.value.replace(/[^0-9]/g, '');
+                e.target.value = val;
+                if (val && idx < inputs.length - 1) {
+                    inputs[idx + 1].focus();
+                }
+                // Auto-submit when all filled
+                if (idx === inputs.length - 1 && val) {
+                    const code = Array.from(inputs).map(i => i.value).join('');
+                    if (code.length === 6) handleVerifyCode();
+                }
+            });
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Backspace' && !e.target.value && idx > 0) {
+                    inputs[idx - 1].focus();
+                }
+            });
+            input.addEventListener('paste', (e) => {
+                e.preventDefault();
+                const text = (e.clipboardData.getData('text') || '').replace(/[^0-9]/g, '').slice(0, 6);
+                for (let i = 0; i < text.length && i < inputs.length; i++) {
+                    inputs[i].value = text[i];
+                }
+                if (text.length === 6) handleVerifyCode();
+            });
+        });
+
+        async function handleEmailLogin() {
+            if (isLoading) return;
+            const email = document.getElementById('loginEmail').value.trim();
+            const pw = document.getElementById('loginPassword').value;
+            if (!email || !pw) { showAlert('Email ва паролни киритинг', 'error'); return; }
+
+            const btn = document.getElementById('loginBtn');
+            setLoading(btn, true);
+
+            const result = await signInWithEmail(email, pw);
+            setLoading(btn, false);
+
+            if (result.success) {
+                window.location.href = 'index.html';
+            } else {
+                showAlert(result.error, 'error');
+            }
+        }
+
+        async function handleGoogleLogin() {
+            if (isLoading) return;
+            const result = await signInWithGoogle();
+            if (result.success) {
+                window.location.href = 'index.html';
+            } else if (result.error) {
+                showAlert(result.error, 'warning');
+            }
+        }
+
+        async function handleRegister() {
+            if (isLoading) return;
+            const name = document.getElementById('regName').value.trim();
+            const email = document.getElementById('regEmail').value.trim();
+            const pw = document.getElementById('regPassword').value;
+            const confirm = document.getElementById('regConfirm').value;
+            const dept = document.getElementById('regDepartment').value;
+
+            if (!name || !email || !pw) { showAlert('Барча майдонларни тўлдиринг', 'error'); return; }
+            if (pw.length < 8) { showAlert('Парол камида 8 белгидан иборат бўлиши керак', 'error'); return; }
+            if (pw !== confirm) { showAlert('Пароллар мос келмайди', 'error'); return; }
+
+            const btn = document.getElementById('registerBtn');
+            setLoading(btn, true);
+
+            const result = await registerWithEmail(name, email, pw, dept, inviteToken);
+            setLoading(btn, false);
+
+            if (result.success) {
+                if (result.autoApproved) {
+                    window.location.href = 'index.html';
+                } else if (result.needsVerification) {
+                    showVerify(email);
+                } else {
+                    showAlert('Рўйхатдан ўтдингиз! Администратор тасдиқлашини кутинг.', 'success');
+                }
+            } else {
+                showAlert(result.error, 'error');
+            }
+        }
+
+        async function handleVerifyCode() {
+            if (isLoading) return;
+            const inputs = document.querySelectorAll('.code-digit');
+            const code = Array.from(inputs).map(i => i.value).join('');
+            if (code.length !== 6) { showAlert('6 хонали кодни тўлиқ киритинг', 'error'); return; }
+
+            const btn = document.getElementById('verifyBtn');
+            setLoading(btn, true);
+
+            const result = await verifyCode(pendingEmail, code);
+            setLoading(btn, false);
+
+            if (result.success) {
+                if (verifyTimerInterval) clearInterval(verifyTimerInterval);
+                document.getElementById('verifyForm').style.display = 'none';
+                showAlert('✅ Email тасдиқланди! Администратор тасдиқлашини кутинг.', 'success');
+                // Show back-to-login button
+                const alertBox = document.getElementById('alertBox');
+                alertBox.innerHTML += '<br><button class="login-btn" style="margin-top:16px;width:100%" onclick="showLogin()">← Кириш саҳифасига қайтиш</button>';
+            } else {
+                showAlert(result.error, 'error');
+            }
+        }
+
+        // Enter key support
+        document.getElementById('loginPassword').addEventListener('keydown', e => { if (e.key === 'Enter') handleEmailLogin(); });
+        document.getElementById('regConfirm').addEventListener('keydown', e => { if (e.key === 'Enter') handleRegister(); });
+
+        function switchLoginLang(lang) {
+            setLanguage(lang);
+            document.querySelectorAll('.lang-btn-login').forEach(b => b.classList.toggle('active', b.dataset.lang === lang));
+            // Update texts (using i18n keys if available, fallback to Uzbek)
+            const texts = {
+                uz: {
+                    subtitle: 'Иш бошқарув тизимига киринг',
+                    google: 'Google орқали кириш',
+                    or: 'ёки',
+                    email: 'Email',
+                    password: 'Парол (камида 8 белги)',
+                    login: 'Кириш',
+                    noAccount: 'Ҳисобингиз йўқми?',
+                    register: 'Рўйхатдан ўтиш',
+                    name: 'Исм-фамилия',
+                    confirm: 'Паролни тасдиқланг',
+                    dept: 'Бўлим',
+                    hasAccount: 'Ҳисобингиз борми?',
+                    verifyInfo: 'Тасдиқлаш коди юборилди',
+                    verify: 'Тасдиқлаш',
+                    inviteBadge: 'Сиз таклиф қилиндингиз!'
+                },
+                en: {
+                    subtitle: 'Sign in to work management system',
+                    google: 'Sign in with Google',
+                    or: 'or',
+                    email: 'Email',
+                    password: 'Password (min 8 chars)',
+                    login: 'Sign In',
+                    noAccount: "Don't have an account?",
+                    register: 'Register',
+                    name: 'Full Name',
+                    confirm: 'Confirm password',
+                    dept: 'Department',
+                    hasAccount: 'Already have an account?',
+                    verifyInfo: 'Verification code sent to',
+                    verify: 'Verify',
+                    inviteBadge: 'You have been invited!'
+                },
+                ru: {
+                    subtitle: 'Войдите в систему управления',
+                    google: 'Войти через Google',
+                    or: 'или',
+                    email: 'Email',
+                    password: 'Пароль (мин 8 символов)',
+                    login: 'Войти',
+                    noAccount: 'Нет аккаунта?',
+                    register: 'Регистрация',
+                    name: 'ФИО',
+                    confirm: 'Подтвердите пароль',
+                    dept: 'Отдел',
+                    hasAccount: 'Уже есть аккаунт?',
+                    verifyInfo: 'Код подтверждения отправлен на',
+                    verify: 'Подтвердить',
+                    inviteBadge: 'Вы приглашены!'
+                }
+            };
+            const t = texts[lang] || texts.uz;
+            document.getElementById('authSubtitle').textContent = t.subtitle;
+            document.getElementById('googleBtnText').textContent = t.google;
+            document.getElementById('orText').textContent = t.or;
+            document.getElementById('lblEmail').textContent = t.email;
+            document.getElementById('lblPassword').textContent = t.password.split('(')[0].trim();
+            document.getElementById('loginBtn').textContent = t.login;
+            document.getElementById('noAccountText').textContent = t.noAccount;
+            document.getElementById('switchToRegister').textContent = t.register;
+            document.getElementById('lblRegName').textContent = t.name;
+            document.getElementById('lblRegEmail').textContent = t.email;
+            document.getElementById('lblRegPassword').textContent = t.password;
+            document.getElementById('lblRegConfirm').textContent = t.confirm;
+            document.getElementById('lblRegDept').textContent = t.dept;
+            document.getElementById('registerBtn').textContent = t.register;
+            document.getElementById('hasAccountText').textContent = t.hasAccount;
+            document.getElementById('switchToLogin').textContent = t.login;
+            document.getElementById('verifyInfoText').textContent = t.verifyInfo;
+            document.getElementById('verifyBtn').textContent = t.verify;
+            if (document.getElementById('inviteBadge').style.display !== 'none') {
+                document.getElementById('inviteBadgeText').textContent = t.inviteBadge;
+            }
+        }
+    </script>
+</body>
+
+</html>

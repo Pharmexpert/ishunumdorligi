@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="uz">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hayot Boshqaruvchisi 2026</title>
+    <meta name="description" content="Jamoaviy boshqaruv tizimi — vazifalar, produktivlik, moliya va maqsadlar">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+    <script
+        src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <!-- SIDEBAR -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-logo">
+            <div class="logo-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10" />
+                    <polyline points="12 6 12 12 16 14" />
+                </svg>
+            </div>
+            <span class="logo-text">Ish unumdorligi <span
+                    style="font-size:0.6em;font-weight:700;-webkit-text-fill-color:#8B5E3C;color:#8B5E3C;vertical-align:middle">v.1</span></span>
+        </div>
+        <nav class="sidebar-nav">
+            <button class="nav-btn active" data-view="dashboard">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="7" height="7" rx="1" />
+                    <rect x="14" y="3" width="7" height="7" rx="1" />
+                    <rect x="3" y="14" width="7" height="7" rx="1" />
+                    <rect x="14" y="14" width="7" height="7" rx="1" />
+                </svg>
+                <span>Dashboard</span>
+            </button>
+            <button class="nav-btn" data-view="tasks">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M9 11l3 3L22 4" />
+                    <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
+                </svg>
+                <span>Vazifalar</span>
+            </button>
+            <button class="nav-btn" data-view="productivity">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                </svg>
+                <span>Samaradorlik</span>
+            </button>
+            <button class="nav-btn" data-view="finance">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="12" y1="1" x2="12" y2="23" />
+                    <path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" />
+                </svg>
+                <span>Moliya</span>
+            </button>
+            <button class="nav-btn" data-view="habits">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path
+                        d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
+                </svg>
+                <span>Odatlar</span>
+            </button>
+            <button class="nav-btn" data-view="drive" id="navDrive">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M22 12H16L14 15H10L8 12H2" />
+                    <path
+                        d="M5.45 5.11L2 12V18A2 2 0 004 20H20A2 2 0 0022 18V12L18.55 5.11A2 2 0 0016.76 4H7.24A2 2 0 005.45 5.11Z" />
+                </svg>
+                <span>Google Drive</span>
+            </button>
+            <button class="nav-btn" data-view="admin" id="navAdmin" style="display:none">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 15a3 3 0 100-6 3 3 0 000 6z" />
+                    <path
+                        d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
+                </svg>
+                <span>Admin panel</span>
+            </button>
+        </nav>
+        <!-- Pomodoro Mini Widget -->
+        <div class="pomo-mini" id="pomoMini" style="display:none">
+            <div class="pomo-mini-timer" id="pomoMiniTimer">25:00</div>
+            <div class="pomo-mini-label" id="pomoMiniLabel">🎯 Fokus</div>
+        </div>
+        <div class="sidebar-footer">
+            <div class="user-info" style="cursor:pointer" onclick="showProfileModal()" title="Профилни ўзгартириш">
+                <div class="user-avatar" id="userAvatar">U</div>
+                <div>
+                    <div class="user-name" id="userName">User</div>
+                    <div style="font-size:0.72rem;color:var(--text-muted)" id="userRole"></div>
+                </div>
+            </div>
+            <button class="btn-secondary" style="width:100%;margin-top:10px;justify-content:center" onclick="signOut()">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
+                    <polyline points="16 17 21 12 16 7" />
+                    <line x1="21" y1="12" x2="9" y2="12" />
+                </svg>
+                <span id="logoutText">Chiqish</span>
+            </button>
+        </div>
+    </aside>
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <!-- MAIN -->
+    <main class="main-content">
+        <header class="main-header">
+            <div class="header-left">
+                <button class="menu-toggle" id="menuToggle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2">
+                        <line x1="3" y1="12" x2="21" y2="12" />
+                        <line x1="3" y1="6" x2="21" y2="6" />
+                        <line x1="3" y1="18" x2="21" y2="18" />
+                    </svg></button>
+                <h1 class="page-title" id="pageTitle">Dashboard</h1>
+            </div>
+            <div class="header-right">
+                <!-- Language Switcher -->
+                <div class="lang-switcher">
+                    <button class="lang-btn active" data-lang="uz" onclick="setLanguage('uz')">UZ</button>
+                    <button class="lang-btn" data-lang="en" onclick="setLanguage('en')">EN</button>
+                    <button class="lang-btn" data-lang="ru" onclick="setLanguage('ru')">RU</button>
+                </div>
+                <!-- Notifications Bell -->
+                <button class="notif-bell" id="notifBell" onclick="toggleNotifications()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                        <path d="M13.73 21a2 2 0 01-3.46 0" />
+                    </svg>
+                    <span class="notif-badge" id="notifBadge" style="display:none">0</span>
+                </button>
+                <!-- Invite Worker (Rahbar only) -->
+                <button class="btn-secondary btn-invite" id="inviteBtn" style="display:none"
+                    onclick="showInviteModal()">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+                        <circle cx="8.5" cy="7" r="4" />
+                        <line x1="20" y1="8" x2="20" y2="14" />
+                        <line x1="23" y1="11" x2="17" y2="11" />
+                    </svg>
+                    <span>Taklif</span>
+                </button>
+                <span class="date-display" id="dateDisplay"></span>
+                <button class="btn-primary" id="headerAddBtn" style="display:none">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="12" y1="5" x2="12" y2="19" />
+                        <line x1="5" y1="12" x2="19" y2="12" />
+                    </svg>
+                    <span>Qo'shish</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Notifications Dropdown -->
+        <div class="notif-dropdown" id="notifDropdown" style="display:none">
+            <div class="notif-header">
+                <h3 id="notifTitle">Bildirishnomalar</h3>
+                <button class="notif-mark-read" onclick="markAllRead()" id="notifMarkRead">✓ Barchasini o'qish</button>
+            </div>
+            <div class="notif-list" id="notifList"></div>
+        </div>
+
+        <!-- ===== DASHBOARD ===== -->
+        <section class="view active" id="view-dashboard">
+            <div class="stats-grid" id="dashboardStats"></div>
+            <div id="dashboardMid" style="margin-top:16px"></div>
+            <div class="dashboard-grid" style="margin-top:16px">
+                <div class="card">
+                    <h3 class="card-title" data-i18n="dash.taskStatus">Vazifalar holati</h3>
+                    <div class="chart-container"><canvas id="chartTaskStatus"></canvas></div>
+                </div>
+                <div class="card">
+                    <h3 class="card-title" data-i18n="dash.finOverview">Moliyaviy ko'rinish</h3>
+                    <div class="chart-container"><canvas id="chartFinanceOverview"></canvas></div>
+                </div>
+            </div>
+            <div class="dashboard-grid" style="margin-top:20px">
+                <div class="card">
+                    <h3 class="card-title" data-i18n="dash.todayTasks">Bugungi vazifalar</h3>
+                    <div id="todayTasks"></div>
+                </div>
+                <div class="card">
+                    <h3 class="card-title" data-i18n="dash.todayProd">Bugungi produktivlik</h3>
+                    <div id="todayProductivity"></div>
+                </div>
+            </div>
+            <div class="dashboard-grid" style="margin-top:20px">
+                <div class="card">
+                    <h3 class="card-title" data-i18n="dash.overdueTasks">Muddati o'tgan vazifalar</h3>
+                    <div id="overdueTasks"></div>
+                </div>
+                <div class="card">
+                    <h3 class="card-title" data-i18n="dash.habitsProgress">Odatlar progressi</h3>
+                    <div class="chart-container"><canvas id="chartHabitsOverview"></canvas></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===== TASKS ===== -->
+        <section class="view" id="view-tasks">
+            <div class="sub-tabs">
+                <button class="sub-tab active" data-subtab="tasklist">📋 Vazifalar</button>
+                <button class="sub-tab" data-subtab="taskkanban">📊 Kanban</button>
+                <button class="sub-tab" data-subtab="taskeisenhower">🎯 Matritsa</button>
+                <button class="sub-tab" data-subtab="taskplanner">📋 Kunlik reja</button>
+                <button class="sub-tab" data-subtab="taskcalendar">📅 Kalendar</button>
+                <button class="sub-tab" data-subtab="taskbrainstorm">💡 G'oyalar</button>
+                <button class="sub-tab" data-subtab="tasksettings">⚙️ Sozlamalar</button>
+            </div>
+            <div id="subtab-tasklist" class="subtab-content active">
+                <div class="view-controls">
+                    <div class="filter-group">
+                        <select class="filter-select" id="filterTaskStatus"></select>
+                        <select class="filter-select" id="filterTaskPriority"></select>
+                        <select class="filter-select" id="filterTaskCategory"></select>
+                        <select class="filter-select" id="filterTaskOwner">
+                            <option value="my">Mening vazifalarim</option>
+                            <option value="dept">Bo'lim vazifalari</option>
+                            <option value="all">Barcha vazifalar</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="tasks-stats-bar" id="tasksStatsBar"></div>
+                <div class="tasks-list" id="tasksList"></div>
+            </div>
+            <div id="subtab-taskkanban" class="subtab-content">
+                <div class="kanban-board" id="kanbanBoard"></div>
+            </div>
+            <div id="subtab-taskplanner" class="subtab-content">
+                <div id="dailyPlanner"></div>
+            </div>
+            <div id="subtab-taskcalendar" class="subtab-content">
+                <div class="tasks-calendar">
+                    <div class="cal-nav" id="taskCalNav"></div>
+                    <div id="tasksCalendar"></div>
+                </div>
+            </div>
+            <div id="subtab-tasksettings" class="subtab-content">
+                <div class="settings-panel" id="taskSettings"></div>
+            </div>
+            <div id="subtab-taskeisenhower" class="subtab-content">
+                <div id="eisenhowerMatrix"></div>
+            </div>
+            <div id="subtab-taskbrainstorm" class="subtab-content">
+                <div id="brainstormBoard"></div>
+            </div>
+        </section>
+
+        <!-- ===== PRODUCTIVITY ===== -->
+        <section class="view" id="view-productivity">
+            <div class="sub-tabs">
+                <button class="sub-tab active" data-subtab="prodgrid">📊 Rejalar</button>
+                <button class="sub-tab" data-subtab="prodtasks">📋 Vazifalar</button>
+                <button class="sub-tab" data-subtab="prodpomodoro">⏱️ Pomodoro</button>
+                <button class="sub-tab" data-subtab="prodreport" id="reportTab" style="display:none">📈 Hisobot</button>
+            </div>
+            <div id="subtab-prodgrid" class="subtab-content active">
+                <div class="view-controls">
+                    <div class="month-nav">
+                        <button class="month-btn" id="prodPrevMonth"><svg viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="2">
+                                <polyline points="15 18 9 12 15 6" />
+                            </svg></button>
+                        <span class="month-label" id="prodMonthLabel"></span>
+                        <button class="month-btn" id="prodNextMonth"><svg viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="2">
+                                <polyline points="9 18 15 12 9 6" />
+                            </svg></button>
+                    </div>
+                </div>
+                <div class="prod-stats" id="prodStats"></div>
+                <div class="prod-grid" id="prodGrid"></div>
+            </div>
+            <div id="subtab-prodtasks" class="subtab-content">
+                <div class="tasks-list" id="prodTasksList"></div>
+            </div>
+            <div id="subtab-prodpomodoro" class="subtab-content">
+                <div id="pomodoroTimer"></div>
+            </div>
+            <div id="subtab-prodreport" class="subtab-content">
+                <div id="teamReport"></div>
+            </div>
+        </section>
+
+        <!-- ===== FINANCE ===== -->
+        <section class="view" id="view-finance">
+            <div class="month-tabs" id="financeMonthTabs"></div>
+            <div id="financeContent"></div>
+            <div class="finance-charts">
+                <div class="card">
+                    <h3 class="card-title">📊 Daromad vs Xarajat</h3>
+                    <div class="chart-container"><canvas id="chartIncomeExpense"></canvas></div>
+                </div>
+                <div class="card">
+                    <h3 class="card-title">📈 Oylik taqqoslash</h3>
+                    <div class="chart-container"><canvas id="chartMonthlyComparison"></canvas></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===== HABITS ===== -->
+        <section class="view" id="view-habits">
+            <div class="sub-tabs">
+                <button class="sub-tab active" data-subtab="yearlygoals">🎯 Yillik maqsadlar</button>
+                <button class="sub-tab" data-subtab="habitsdashboard">📊 Dashboard</button>
+                <button class="sub-tab" data-subtab="habitsmonthly">📅 Oylik nazorat</button>
+            </div>
+            <div id="subtab-yearlygoals" class="subtab-content active">
+                <div class="habits-categories" id="yearlyGoals"></div>
+            </div>
+            <div id="subtab-habitsdashboard" class="subtab-content">
+                <div id="habitsDashboard"></div>
+            </div>
+            <div id="subtab-habitsmonthly" class="subtab-content">
+                <div class="view-controls">
+                    <div class="month-nav">
+                        <button class="month-btn" id="habitPrevMonth"><svg viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="2">
+                                <polyline points="15 18 9 12 15 6" />
+                            </svg></button>
+                        <span class="month-label" id="habitMonthLabel"></span>
+                        <button class="month-btn" id="habitNextMonth"><svg viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="2">
+                                <polyline points="9 18 15 12 9 6" />
+                            </svg></button>
+                    </div>
+                </div>
+                <div class="prod-stats" id="habitMonthStats"></div>
+                <div class="prod-grid" id="habitMonthGrid"></div>
+            </div>
+        </section>
+
+        <!-- ===== ADMIN ===== -->
+        <section class="view" id="view-admin">
+            <div class="sub-tabs">
+                <button class="sub-tab active" data-subtab="adminusers">👥 Foydalanuvchilar</button>
+                <button class="sub-tab" data-subtab="adminstats">📊 Statistika</button>
+                <button class="sub-tab" data-subtab="admindepts">🏢 Bo'limlar</button>
+                <button class="sub-tab" data-subtab="admininvites">✉️ Takliflar</button>
+            </div>
+            <div id="subtab-adminusers" class="subtab-content active">
+                <div class="stats-grid" id="adminStats"></div>
+                <div class="view-controls" style="display:flex;align-items:center;flex-wrap:wrap;gap:8px">
+                    <div class="filter-group" style="display:flex;gap:8px;align-items:center">
+                        <select class="filter-select" id="adminFilterRole">
+                            <option value="all">Barcha rollar</option>
+                            <option value="admin">Admin</option>
+                            <option value="rahbar">Rahbar</option>
+                            <option value="ekspert">Ekspert</option>
+                            <option value="ishchi">Ishchi</option>
+                            <option value="foydalanuvchi">Foydalanuvchi</option>
+                        </select>
+                        <select class="filter-select" id="adminFilterStatus">
+                            <option value="all">Barcha statuslar</option>
+                            <option value="approved">Tasdiqlangan</option>
+                            <option value="pending">Kutilmoqda</option>
+                            <option value="rejected">Rad etilgan</option>
+                        </select>
+                        <button class="btn-secondary"
+                            onclick="document.getElementById('adminFilterRole').value='all';document.getElementById('adminFilterStatus').value='all';document.getElementById('adminFilterRole').onchange();"
+                            title="Фильтрни тозалаш" style="padding:6px 12px;font-size:0.8rem">🔄 Тозалаш</button>
+                    </div>
+                    <button class="btn-primary" onclick="showSendNotificationModal()"
+                        style="margin-left:auto;padding:8px 16px;font-size:0.85rem">📢 Хабарнома юбориш</button>
+                </div>
+                <div id="adminUsersList"></div>
+            </div>
+            <div id="subtab-adminstats" class="subtab-content">
+                <div id="adminStatsContent"></div>
+            </div>
+            <div id="subtab-admindepts" class="subtab-content">
+                <div id="adminDeptsContent"></div>
+            </div>
+            <div id="subtab-admininvites" class="subtab-content">
+                <div id="adminInvitesContent"></div>
+            </div>
+        </section>
+
+        <!-- ===== GOOGLE DRIVE ===== -->
+        <section class="view" id="view-drive">
+            <div class="drive-toolbar">
+                <div class="drive-breadcrumbs" id="driveBreadcrumbs">
+                    <span class="drive-crumb" onclick="driveNavigate('root')">📁 Drive</span>
+                </div>
+                <div class="drive-actions">
+                    <input type="text" class="form-input" id="driveSearch" placeholder="Қидириш..."
+                        style="max-width:200px" onkeydown="if(event.key==='Enter')driveSearchFiles()">
+                    <button class="btn-secondary" onclick="driveCreateFolder()">📁 Янги папка</button>
+                    <label class="btn-primary" style="cursor:pointer">
+                        📤 Юклаш
+                        <input type="file" id="driveUploadInput" style="display:none" onchange="driveUploadFile()"
+                            multiple>
+                    </label>
+                </div>
+            </div>
+            <div id="driveStatus"></div>
+            <div class="drive-files-grid" id="driveFilesGrid">
+                <div style="text-align:center;padding:60px;color:var(--text-muted)">
+                    <div style="font-size:3rem;margin-bottom:16px">📁</div>
+                    <p>Google Drive юкланмоқда...</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- MODAL -->
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 class="modal-title" id="modalTitle"></h2>
+                <button class="modal-close" id="modalClose"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg></button>
+            </div>
+            <div class="modal-body" id="modalBody"></div>
+        </div>
+    </div>
+
+    <!-- TOAST -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- SCRIPTS -->
+    <script src="i18n.js"></script>
+    <script src="auth.js"></script>
+    <script src="app.js"></script>
+    <script src="app2.js"></script>
+    <script src="modules.js"></script>
+    <script src="admin.js"></script>
+</body>
+
+</html>

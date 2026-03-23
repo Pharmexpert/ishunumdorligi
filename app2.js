@@ -961,10 +961,6 @@ async function renderGoogleDrive() {
     if (!grid) return;
 
     const token = getJwtToken();
-    if (!token) {
-        grid.innerHTML = '<div style="text-align:center;padding:60px;color:var(--text-muted)"><p>⚠️ Авторизация керак</p></div>';
-        return;
-    }
 
     // === BUILD PROFILE FOLDERS + LIB FILES (always shown at root) ===
     let profileHtml = '';
@@ -1018,7 +1014,13 @@ async function renderGoogleDrive() {
         grid.innerHTML = '<div style="text-align:center;padding:60px;color:var(--text-muted)"><div class="loading-spinner" style="width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--accent-primary);border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 16px"></div><p>Юкланмоқда...</p></div>';
     }
 
-    // === NOW TRY LOADING DRIVE FILES ===
+    // === NOW TRY LOADING DRIVE FILES (only if authenticated) ===
+    if (!token) {
+        // No token — just hide drive loading section
+        const cloudEl = document.getElementById('driveCloudSection');
+        if (cloudEl) cloudEl.innerHTML = '';
+        return;
+    }
     try {
         const res = await fetch(`/api/drive/files?folderId=${_driveCurrentFolder}`, {
             headers: { 'Authorization': 'Bearer ' + token }

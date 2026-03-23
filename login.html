@@ -486,6 +486,15 @@
                     <span id="noAccountText">Ҳисобингиз йўқми?</span> <a onclick="showRegister()"
                         id="switchToRegister">Рўйхатдан ўтиш</a>
                 </div>
+
+                <div style="margin-top:16px;padding-top:16px;border-top:1px dashed rgba(192,120,64,0.2)">
+                    <button class="login-btn" id="guestBtn" onclick="handleGuestLogin()"
+                        style="background:transparent;color:#C07840;border:1.5px dashed #C07840;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px">
+                        👻 Меҳмон бўлиб кириш
+                    </button>
+                    <p style="text-align:center;font-size:0.72rem;color:#999;margin-top:6px">Рўйхатдан ўтмасдан
+                        платформани кўриш</p>
+                </div>
             </div>
 
             <!-- FORGOT PASSWORD FORM -->
@@ -851,6 +860,13 @@
                 window.location.href = 'index.html';
             } else {
                 showAlert(result.error, 'error');
+            }
+        }
+
+        function handleGuestLogin() {
+            const result = signInAsGuest();
+            if (result.success) {
+                window.location.href = 'index.html';
             }
         }
 

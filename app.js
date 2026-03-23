@@ -9,6 +9,8 @@ const STORAGE_KEYS = { tasks: 'hb_tasks', productivity: 'hb_prod', finance: 'hb_
 function loadData(key, def = []) { try { return JSON.parse(localStorage.getItem(key)) || def; } catch { return def; } }
 function saveData(key, data) {
     localStorage.setItem(key, JSON.stringify(data));
+    // Skip server sync for guest users
+    if (isGuest(_authUser)) return;
     // Async sync to server (fire-and-forget)
     syncKeyToServer(key, data);
 }
@@ -31,7 +33,7 @@ function syncKeyToServer(key, value) {
 
 async function syncFromServer() {
     const token = localStorage.getItem('hb_token');
-    if (!token) return;
+    if (!token || isGuest(_authUser)) return;
     try {
         const res = await fetch('/api/user/data', {
             headers: { 'Authorization': 'Bearer ' + token }
@@ -54,7 +56,7 @@ async function syncFromServer() {
 
 async function syncAllToServer() {
     const token = localStorage.getItem('hb_token');
-    if (!token) return;
+    if (!token || isGuest(_authUser)) return;
     const payload = {};
     Object.keys(STORAGE_KEYS).forEach(k => {
         const storageKey = STORAGE_KEYS[k];
@@ -163,36 +165,190 @@ function setupUIForUser() {
 }
 
 function initSeedData() {
+    // For guest users, always load rich demo data to showcase the platform
+    const isGuestMode = isGuest(_authUser);
+    const uid = _authUser.id;
+    const dept = _authUser.department || 'Farmatsevtika';
+
     if (!localStorage.getItem(STORAGE_KEYS.prodItems)) saveData(STORAGE_KEYS.prodItems, DEFAULT_PROD_ITEMS);
     if (!localStorage.getItem(STORAGE_KEYS.settings)) saveData(STORAGE_KEYS.settings, { taskCategories: DEFAULT_TASK_CATEGORIES, weekStart: 'monday' });
-    if (!localStorage.getItem(STORAGE_KEYS.tasks)) {
+
+    // Rich tasks for guest demo
+    if (!localStorage.getItem(STORAGE_KEYS.tasks) || isGuestMode) {
+        const today = new Date().toISOString().slice(0, 10);
+        const d = (days) => { const dt = new Date(); dt.setDate(dt.getDate() + days); return dt.toISOString().slice(0, 10); };
+        const dp = (days) => { const dt = new Date(); dt.setDate(dt.getDate() - days); return dt.toISOString().slice(0, 10); };
         saveData(STORAGE_KEYS.tasks, [
-            { id: genId(), name: "Farmatsevtika xabarnomasi jurnalini ko'rib chiqish", priority: 'ota_muhim', category: 'Ish', status: 'jarayonda', deadline: '2026-03-25', time: '10:00', created: '2026-03-20', note: '', createdBy: _authUser.id, assignedTo: _authUser.id, department: _authUser.department },
-            { id: genId(), name: 'Haftalik hisobot tayyorlash', priority: 'muhim', category: 'Ish', status: 'yangi', deadline: '2026-03-28', time: '14:00', created: '2026-03-21', note: '', createdBy: _authUser.id, assignedTo: _authUser.id, department: _authUser.department },
-            { id: genId(), name: 'Kitob o\'qishni tugatish', priority: 'past', category: 'Shaxsiy', status: 'yangi', deadline: '2026-03-30', time: '', created: '2026-03-18', note: '', createdBy: _authUser.id, assignedTo: _authUser.id, department: _authUser.department },
-            { id: genId(), name: 'Moliyaviy rejani yangilash', priority: 'muhim', category: 'Moliya', status: 'bajarildi', deadline: '2026-03-15', time: '', created: '2026-03-10', note: '', createdBy: _authUser.id, assignedTo: _authUser.id, department: _authUser.department },
-            { id: genId(), name: 'Prezentatsiya tayyorlash', priority: 'orta', category: 'Ish', status: 'yangi', deadline: '2026-04-01', time: '09:00', created: '2026-03-21', note: '', createdBy: _authUser.id, assignedTo: _authUser.id, department: _authUser.department },
+            // Ўта муҳим
+            { id: genId(), name: 'Йиллик ҳисобот тайёрлаш', priority: 'ota_muhim', category: 'Ish', status: 'jarayonda', deadline: d(2), time: '09:00', created: dp(5), note: 'Бош директорга тақдимот', createdBy: uid, assignedTo: uid, department: dept, startedAt: dp(2), isFocus: true },
+            { id: genId(), name: 'GMP сертификати янгилаш', priority: 'ota_muhim', category: 'Ish', status: 'yangi', deadline: d(5), time: '10:00', created: dp(3), note: 'Ҳужжатлар тўплами тайёрланиши керак', createdBy: uid, assignedTo: uid, department: dept },
+            { id: genId(), name: 'Тиббий экспертиза учун намуналар', priority: 'ota_muhim', category: 'Ish', status: 'tekshiruvda', deadline: d(1), time: '14:00', created: dp(7), note: '', createdBy: uid, assignedTo: uid, department: dept, submittedAt: dp(1) },
+            // Муҳим
+            { id: genId(), name: 'Ходимлар тренинги режаси', priority: 'muhim', category: 'Ish', status: 'yangi', deadline: d(7), time: '11:00', created: dp(2), note: 'Янги тизим бўйича', createdBy: uid, assignedTo: uid, department: dept },
+            { id: genId(), name: 'Маркетинг стратегия тақдимоти', priority: 'muhim', category: 'Ish', status: 'jarayonda', deadline: d(4), time: '15:00', created: dp(6), note: 'Q2 учун', createdBy: uid, assignedTo: uid, department: dept, startedAt: dp(3) },
+            { id: genId(), name: 'Молиявий режани янгилаш', priority: 'muhim', category: 'Moliya', status: 'bajarildi', deadline: dp(2), time: '', created: dp(10), note: '', createdBy: uid, assignedTo: uid, department: dept, completedAt: dp(2) },
+            { id: genId(), name: 'Инглиз тили курси 2-модул', priority: 'muhim', category: "O'qish", status: 'jarayonda', deadline: d(14), time: '19:00', created: dp(20), note: 'IELTS 7.0 мақсад', createdBy: uid, assignedTo: uid, department: dept, startedAt: dp(15) },
+            // Ўртача
+            { id: genId(), name: 'Ҳафталик жамоа йиғилиши', priority: 'orta', category: 'Ish', status: 'yangi', deadline: d(1), time: '10:00', created: dp(1), note: 'Zoom орқали', createdBy: uid, assignedTo: uid, department: dept },
+            { id: genId(), name: 'Веб-сайтни янгилаш', priority: 'orta', category: 'Ish', status: 'yangi', deadline: d(10), time: '', created: dp(4), note: 'Мобил версия', createdBy: uid, assignedTo: uid, department: dept },
+            { id: genId(), name: 'Спортга ёзилиш', priority: 'orta', category: "Sog'liq", status: 'bajarildi', deadline: dp(5), time: '', created: dp(15), note: 'Сузиш ҳавзаси', createdBy: uid, assignedTo: uid, department: dept, completedAt: dp(5) },
+            { id: genId(), name: '«Атомик одатлар» китобини ўқиш', priority: 'orta', category: "O'qish", status: 'jarayonda', deadline: d(21), time: '', created: dp(14), note: '150/320 саҳифа', createdBy: uid, assignedTo: uid, department: dept, startedAt: dp(10) },
+            { id: genId(), name: 'Оилавий сафар режалаштириш', priority: 'orta', category: 'Oila', status: 'yangi', deadline: d(30), time: '', created: dp(2), note: 'Самарқанд, 3 кунлик', createdBy: uid, assignedTo: uid, department: dept },
+            // Паст
+            { id: genId(), name: 'Иш столини тозалаш', priority: 'past', category: 'Shaxsiy', status: 'bajarildi', deadline: dp(1), time: '', created: dp(3), note: '', createdBy: uid, assignedTo: uid, department: dept, completedAt: dp(1) },
+            { id: genId(), name: 'Янги рецептлар синаш', priority: 'past', category: 'Oila', status: 'yangi', deadline: d(15), time: '', created: dp(1), note: 'Италиян ошхона', createdBy: uid, assignedTo: uid, department: dept },
+            { id: genId(), name: 'Фото архивни тартиблаш', priority: 'past', category: 'Shaxsiy', status: 'yangi', deadline: d(20), time: '', created: dp(5), note: '', createdBy: uid, assignedTo: uid, department: dept },
+            // Бажарилганлар (кўпроқ)
+            { id: genId(), name: 'Q1 молиявий ҳисобот', priority: 'muhim', category: 'Moliya', status: 'bajarildi', deadline: dp(7), time: '16:00', created: dp(14), note: '', createdBy: uid, assignedTo: uid, department: dept, completedAt: dp(7) },
+            { id: genId(), name: 'Лаборатория ускуналари текшируви', priority: 'ota_muhim', category: 'Ish', status: 'bajarildi', deadline: dp(3), time: '08:00', created: dp(10), note: 'Ҳаммаси нормал', createdBy: uid, assignedTo: uid, department: dept, completedAt: dp(3) },
+            { id: genId(), name: 'Нотиқлик курси 1-дарс', priority: 'orta', category: "O'qish", status: 'bajarildi', deadline: dp(4), time: '18:00', created: dp(8), note: '', createdBy: uid, assignedTo: uid, department: dept, completedAt: dp(4) },
         ]);
     }
-    if (!localStorage.getItem(STORAGE_KEYS.habits)) {
-        saveData(STORAGE_KEYS.habits, DEFAULT_CATEGORIES.map(c => ({
-            ...c, goals: [{ id: genId(), name: c.id === 'work' ? 'Ilmiy maqola yozish' : c.id === 'finance' ? 'Jamg\'arma ko\'paytirish' : c.id === 'creative' ? 'Yangi loyiha boshlash' : c.id === 'personal' ? 'Sog\'lig\'imni yaxshilash' : c.id === 'relations' ? 'Oila bilan vaqt o\'tkazish' : 'Meditatsiya qilish', desc: '', progress: Math.floor(Math.random() * 60 + 10), subtasks: [{ id: genId(), text: 'Kunlik vazifa', type: 'daily', done: false }, { id: genId(), text: 'Haftalik vazifa', type: 'weekly', done: false }, { id: genId(), text: 'Oylik vazifa', type: 'monthly', done: false }] }]
-        })));
+
+    // Rich productivity data — 7 days of history for guests
+    if (!localStorage.getItem(STORAGE_KEYS.productivity) || isGuestMode) {
+        const prod = {};
+        const items = DEFAULT_PROD_ITEMS;
+        for (let i = 0; i < 7; i++) {
+            const dt = new Date(); dt.setDate(dt.getDate() - i);
+            const key = dt.toISOString().slice(0, 10);
+            prod[key] = {};
+            const completionRate = i === 0 ? 0.65 : (0.5 + Math.random() * 0.4);
+            items.forEach((item, idx) => {
+                prod[key][idx] = Math.random() < completionRate;
+            });
+        }
+        saveData(STORAGE_KEYS.productivity, prod);
     }
-    if (!localStorage.getItem(STORAGE_KEYS.finance)) {
-        const fin = {};
-        for (let m = 0; m < 12; m++) {
-            fin[m] = { income: [], expenses: [], savings: 0 };
-            if (m <= 2) {
-                fin[m].income = [{ id: genId(), name: 'Asosiy ish haqi', amount: 8000000 }, { id: genId(), name: 'Qo\'shimcha daromad', amount: 2000000 }];
-                fin[m].expenses = [{ id: genId(), name: 'Uy-joy', amount: 2500000, category: 'Uy-joy' }, { id: genId(), name: 'Oziq-ovqat', amount: 1500000, category: 'Oziq-ovqat' }, { id: genId(), name: 'Transport', amount: 800000, category: 'Transport' }, { id: genId(), name: 'Kommunal', amount: 500000, category: 'Kommunal' }];
-                fin[m].savings = 4700000;
+
+    // Rich habits with multiple goals per category
+    if (!localStorage.getItem(STORAGE_KEYS.habits) || isGuestMode) {
+        saveData(STORAGE_KEYS.habits, [
+            {
+                ...DEFAULT_CATEGORIES[0], goals: [
+                    {
+                        id: genId(), name: 'Илмий мақола ёзиш', desc: 'Q1 журналга мақола', progress: 72, subtasks: [
+                            { id: genId(), text: 'Адабиётлар таҳлили', type: 'daily', done: true },
+                            { id: genId(), text: 'Маълумот йиғиш', type: 'weekly', done: true },
+                            { id: genId(), text: 'Мақола ёзиш', type: 'monthly', done: false }
+                        ]
+                    },
+                    {
+                        id: genId(), name: 'Тақдимот кўникмаси', desc: 'Ҳар ҳафта 1 та', progress: 55, subtasks: [
+                            { id: genId(), text: 'Мавзу танлаш', type: 'weekly', done: true },
+                            { id: genId(), text: 'Слайдлар тайёрлаш', type: 'weekly', done: false }
+                        ]
+                    }
+                ]
+            },
+            {
+                ...DEFAULT_CATEGORIES[1], goals: [
+                    {
+                        id: genId(), name: "Jamg'arma ko'paytirish", desc: 'Ойига 2 млн', progress: 68, subtasks: [
+                            { id: genId(), text: 'Кунлик харажатлар ҳисоби', type: 'daily', done: true },
+                            { id: genId(), text: 'Инвестиция таҳлили', type: 'monthly', done: false }
+                        ]
+                    },
+                    {
+                        id: genId(), name: 'Пассив даромад манбаси', desc: 'Фриланс лойиҳа', progress: 35, subtasks: [
+                            { id: genId(), text: 'Портфолио тайёрлаш', type: 'monthly', done: false },
+                            { id: genId(), text: 'Биринчи буюртма олиш', type: 'monthly', done: false }
+                        ]
+                    }
+                ]
+            },
+            {
+                ...DEFAULT_CATEGORIES[2], goals: [
+                    {
+                        id: genId(), name: 'Янги лойиҳа бошлаш', desc: 'Мобил илова', progress: 42, subtasks: [
+                            { id: genId(), text: 'Дизайн эскиз', type: 'weekly', done: true },
+                            { id: genId(), text: 'Прототип яратиш', type: 'monthly', done: false }
+                        ]
+                    }
+                ]
+            },
+            {
+                ...DEFAULT_CATEGORIES[3], goals: [
+                    {
+                        id: genId(), name: "Sog'lig'imni yaxshilash", desc: 'Спорт + овқатланиш', progress: 60, subtasks: [
+                            { id: genId(), text: 'Эрталабки машқ', type: 'daily', done: true },
+                            { id: genId(), text: '8 стакан сув ичиш', type: 'daily', done: true },
+                            { id: genId(), text: 'Тиббий кўрик', type: 'monthly', done: false }
+                        ]
+                    },
+                    {
+                        id: genId(), name: 'IELTS 7.0 олиш', desc: 'Инглиз тили', progress: 48, subtasks: [
+                            { id: genId(), text: 'Сўз ёд олиш (30 та/кун)', type: 'daily', done: false },
+                            { id: genId(), text: 'Аудирование машқ', type: 'daily', done: true },
+                            { id: genId(), text: 'Мок тест топшириш', type: 'weekly', done: false }
+                        ]
+                    }
+                ]
+            },
+            {
+                ...DEFAULT_CATEGORIES[4], goals: [
+                    {
+                        id: genId(), name: 'Oila bilan vaqt', desc: 'Сифатли вақт ўтказиш', progress: 75, subtasks: [
+                            { id: genId(), text: 'Оилавий кечки овқат', type: 'daily', done: true },
+                            { id: genId(), text: 'Дам олиш куни сайр', type: 'weekly', done: true }
+                        ]
+                    }
+                ]
+            },
+            {
+                ...DEFAULT_CATEGORIES[5], goals: [
+                    {
+                        id: genId(), name: 'Медитация қилиш', desc: 'Кунига 15 дақиқа', progress: 82, subtasks: [
+                            { id: genId(), text: 'Эрталабки медитация', type: 'daily', done: true },
+                            { id: genId(), text: "Қуръон тиловати", type: 'daily', done: true }
+                        ]
+                    }
+                ]
             }
+        ]);
+    }
+
+    // Rich finance data — all 12 months
+    if (!localStorage.getItem(STORAGE_KEYS.finance) || isGuestMode) {
+        const fin = {};
+        const incomeBase = 8000000;
+        const expenses = [
+            { name: 'Uy-joy', amount: 2500000, category: 'Uy-joy' },
+            { name: 'Oziq-ovqat', amount: 1800000, category: 'Oziq-ovqat' },
+            { name: 'Transport', amount: 900000, category: 'Transport' },
+            { name: 'Kommunal', amount: 500000, category: 'Kommunal' },
+            { name: "Ta'lim", amount: 600000, category: "Ta'lim" },
+            { name: 'Kiyim-kechak', amount: 400000, category: 'Boshqa' }
+        ];
+        for (let m = 0; m < 12; m++) {
+            const variation = 1 + (Math.random() * 0.15 - 0.075);
+            fin[m] = {
+                income: [
+                    { id: genId(), name: 'Asosiy ish haqi', amount: Math.round(incomeBase * variation) },
+                    { id: genId(), name: "Qo'shimcha daromad", amount: Math.round(2000000 * (0.8 + Math.random() * 0.4)) },
+                    ...(m % 3 === 0 ? [{ id: genId(), name: 'Bonus', amount: 1500000 }] : [])
+                ],
+                expenses: expenses.map(e => ({
+                    id: genId(), name: e.name, amount: Math.round(e.amount * (0.85 + Math.random() * 0.3)), category: e.category
+                })),
+                savings: Math.round(3000000 + Math.random() * 2000000)
+            };
         }
         saveData(STORAGE_KEYS.finance, fin);
     }
-    if (!localStorage.getItem(STORAGE_KEYS.debts)) {
-        saveData(STORAGE_KEYS.debts, [{ id: genId(), date: '2025-01-01', creditor: 'Dilshod', originalAmount: 10000000, paidAmount: 2000000, remaining: 8000000, months: 6, monthlyPayment: 1333333, paymentDate: '2025-01-10', deadline: '2025-01-15', status: 'paid', note: '' }]);
+
+    // Rich debts
+    if (!localStorage.getItem(STORAGE_KEYS.debts) || isGuestMode) {
+        saveData(STORAGE_KEYS.debts, [
+            { id: genId(), date: '2025-06-01', creditor: 'Dilshod', originalAmount: 10000000, paidAmount: 8000000, remaining: 2000000, months: 6, monthlyPayment: 1333333, paymentDate: '2025-06-10', deadline: '2025-12-01', status: 'active', note: 'Автомобил учун' },
+            { id: genId(), date: '2025-09-01', creditor: 'Bank kredit', originalAmount: 25000000, paidAmount: 5000000, remaining: 20000000, months: 24, monthlyPayment: 1041666, paymentDate: '2025-09-15', deadline: '2027-09-01', status: 'active', note: 'Квартира таъмири' },
+            { id: genId(), date: '2025-01-01', creditor: 'Sardor', originalAmount: 5000000, paidAmount: 5000000, remaining: 0, months: 3, monthlyPayment: 1666666, paymentDate: '2025-01-05', deadline: '2025-04-01', status: 'paid', note: '' }
+        ]);
+    }
+
+    // Pomodoro sessions for guests
+    if (!localStorage.getItem(STORAGE_KEYS.pomodoro) || isGuestMode) {
+        saveData(STORAGE_KEYS.pomodoro, { sessions: 47, mode: 'work', seconds: 25 * 60, running: false });
     }
 }
 

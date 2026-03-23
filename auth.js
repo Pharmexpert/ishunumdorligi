@@ -18,15 +18,24 @@ async function apiCall(endpoint, options = {}) {
     const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
     if (token) headers['Authorization'] = 'Bearer ' + token;
 
+    // Timeout after 15 seconds
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+
     try {
-        const res = await fetch(API_BASE + endpoint, { ...options, headers });
+        const res = await fetch(API_BASE + endpoint, { ...options, headers, signal: controller.signal });
+        clearTimeout(timeoutId);
         const data = await res.json();
         if (!res.ok) {
             return { success: false, error: data.error || 'Хатолик юз берди', status: res.status };
         }
         return { success: true, ...data };
     } catch (err) {
+        clearTimeout(timeoutId);
         console.error('API error:', err);
+        if (err.name === 'AbortError') {
+            return { success: false, error: 'Сервер жавоб бермаяпти. Кейинроқ уриниб кўринг.' };
+        }
         return { success: false, error: 'Серверга уланиб бўлмади' };
     }
 }
@@ -201,7 +210,60 @@ async function verifyCode(email, code) {
 
 function signOut() {
     clearJwtToken();
+    localStorage.removeItem('hb_guest_mode');
     window.location.href = 'login.html';
+}
+
+// ===== GUEST MODE =====
+function signInAsGuest() {
+    const guestUser = {
+        id: 'guest_' + Date.now(),
+        name: 'Меҳмон',
+        email: 'guest@demo.local',
+        role: 'foydalanuvchi',
+        department: '',
+        status: 'approved',
+        isGuest: true,
+        createdAt: new Date().toISOString()
+    };
+    localStorage.setItem('hb_guest_mode', 'true');
+    setCurrentUser(guestUser);
+    // Don't set JWT token — guest has no server auth
+    return { success: true, user: guestUser };
+}
+
+function isGuest(user) {
+    return (user && user.isGuest) || localStorage.getItem('hb_guest_mode') === 'true';
+}
+
+function requireRegistration(actionName) {
+    // Show modal prompting guest to register
+    const existing = document.getElementById('guestRegModal');
+    if (existing) existing.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'guestRegModal';
+    modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.45);z-index:99999;display:flex;align-items:center;justify-content:center;animation:fadeIn 0.2s';
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+
+    modal.innerHTML = `
+    <div style="background:linear-gradient(135deg,#FFFBF5,#FFF3E0);border-radius:20px;padding:32px;max-width:400px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.2);border:1px solid rgba(192,120,64,0.15);text-align:center">
+        <div style="font-size:3rem;margin-bottom:12px">🔒</div>
+        <h3 style="margin:0 0 8px;color:#3D2B1F;font-size:1.15rem">Рўйхатдан ўтишингиз керак</h3>
+        <p style="color:#6B5744;font-size:0.88rem;margin-bottom:20px;line-height:1.5">
+            ${actionName ? '<strong>«' + actionName + '»</strong> амалини бажариш учун<br>' : ''}
+            платформада рўйхатдан ўтинг ёки тизимга киринг.
+        </p>
+        <div style="display:flex;gap:10px">
+            <button onclick="document.getElementById('guestRegModal').remove()" 
+                style="flex:1;padding:12px;border:1px solid rgba(192,120,64,0.2);background:white;border-radius:10px;cursor:pointer;font-weight:600;color:#6B5744;font-size:0.9rem">Бекор</button>
+            <button onclick="signOut()" 
+                style="flex:1;padding:12px;border:none;background:linear-gradient(135deg,#C07840,#D4956B);color:white;border-radius:10px;cursor:pointer;font-weight:700;font-size:0.9rem">📝 Рўйхатдан ўтиш</button>
+        </div>
+    </div>`;
+
+    document.body.appendChild(modal);
+    return false;
 }
 
 // ===== ROLE CHECKS =====
@@ -345,6 +407,11 @@ function getApprovedUsers() {
 
 // ===== AUTH CHECK =====
 function requireAuth() {
+    // Allow guest users
+    if (localStorage.getItem('hb_guest_mode') === 'true') {
+        const user = getCurrentUser();
+        if (user) return user;
+    }
     const token = getJwtToken();
     const user = getCurrentUser();
     if (!token || !user) {

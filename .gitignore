@@ -8,3 +8,7 @@ client_secret_*.json
 excel_analysis.json
 uploads/
 *.resolved
+.vercel
+.env*.local
+.env.production
+.env.vercel

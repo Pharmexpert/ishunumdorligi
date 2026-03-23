@@ -51,24 +51,64 @@ function toggleProd(key, index) {
     renderProductivity();
 }
 
+let _prodTaskFilter = 'all'; // 'all', 'mine', 'done'
+
 function renderProdTasks() {
     const tasks = loadData(STORAGE_KEYS.tasks);
-    const activeTasks = tasks.filter(task => task.status !== 'bajarildi' && task.status !== 'bekor' && (task.assignedTo === _authUser.id || task.createdBy === _authUser.id));
-    activeTasks.sort((a, b) => (a.deadline || '9999') < (b.deadline || '9999') ? -1 : 1);
     const container = document.getElementById('prodTasksList');
-    if (!activeTasks.length) { container.innerHTML = `<div class="empty-state"><h3>${t('prod.noActive')}</h3><p>${t('prod.allDone')}</p></div>`; return; }
-    container.innerHTML = activeTasks.map(task => {
+
+    // Filter tabs
+    const tabsHtml = `<div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">
+        <button class="month-tab ${_prodTaskFilter === 'all' ? 'active' : ''}" onclick="_prodTaskFilter='all';renderProdTasks()">📋 Барча вазифалар</button>
+        <button class="month-tab ${_prodTaskFilter === 'mine' ? 'active' : ''}" onclick="_prodTaskFilter='mine';renderProdTasks()">👤 Менинг</button>
+        <button class="month-tab ${_prodTaskFilter === 'done' ? 'active' : ''}" onclick="_prodTaskFilter='done';renderProdTasks()">✅ Бажарилган</button>
+    </div>`;
+
+    let filtered;
+    if (_prodTaskFilter === 'done') {
+        filtered = tasks.filter(task => task.status === 'bajarildi');
+    } else if (_prodTaskFilter === 'mine') {
+        filtered = tasks.filter(task => task.status !== 'bekor' && (task.assignedTo === _authUser.id || task.createdBy === _authUser.id));
+    } else {
+        filtered = tasks.filter(task => task.status !== 'bekor');
+    }
+    filtered.sort((a, b) => (a.deadline || '9999') < (b.deadline || '9999') ? -1 : 1);
+
+    if (!filtered.length) {
+        container.innerHTML = tabsHtml + `<div class="empty-state"><h3>${t('prod.noActive')}</h3><p>${t('prod.allDone')}</p></div>`;
+        return;
+    }
+
+    const statusLabels = { yangi: '🆕', jarayonda: '🔄', tekshiruvda: '🔍', bajarildi: '✅', uzoq_muddatli: '📌', bekor: '❌' };
+
+    container.innerHTML = tabsHtml + filtered.map(task => {
         const days = getDaysRemaining(task.deadline);
-        const isOverdue = days !== null && days < 0;
+        const isOverdue = days !== null && days < 0 && task.status !== 'bajarildi';
         const assignee = task.assigneeName || '';
-        return `<div class="task-item ${isOverdue ? 'overdue' : ''}" style="cursor:pointer" onclick="openProdTaskDetail('${task.id}')">
+        const statusIcon = statusLabels[task.status] || '📋';
+        const execPct = task.executionPct || 0;
+        const comments = task.comments || [];
+        const lastComment = comments.length ? comments[comments.length - 1] : null;
+
+        return `<div class="task-item ${isOverdue ? 'overdue' : ''} ${task.status === 'bajarildi' ? 'completed' : ''}" style="cursor:pointer;position:relative" onclick="openProdTaskDetail('${task.id}')">
             <div class="task-checkbox ${task.status === 'bajarildi' ? 'checked' : ''}" onclick="event.stopPropagation();toggleTask('${task.id}');renderProductivity()"></div>
-            <div class="task-info"><div class="task-name">${task.name}</div>
-            <div class="task-meta"><span class="badge ${task.priority}">${t('priority.' + task.priority)}</span>
-            <span>📅 ${formatDate(task.deadline)}</span>${task.time ? `<span>⏰ ${task.time}</span>` : ''}
-            ${assignee ? `<span>👤 ${assignee}</span>` : ''}
-            ${task.executionNote ? `<span>📝</span>` : ''}
-            ${days !== null ? `<span style="color:${isOverdue ? 'var(--danger)' : days <= 3 ? 'var(--warning)' : 'var(--text-muted)'}; font-weight:600">${isOverdue ? Math.abs(days) + ' ' + t('tasks.daysOverdue') : days + ' ' + t('tasks.daysLeft')}</span>` : ''}</div></div></div>`;
+            <div class="task-info" style="flex:1">
+                <div class="task-name">${statusIcon} ${task.name}</div>
+                <div class="task-meta">
+                    <span class="badge ${task.priority}">${t('priority.' + task.priority)}</span>
+                    <span>📅 ${formatDate(task.deadline)}</span>
+                    ${task.time ? `<span>⏰ ${task.time}</span>` : ''}
+                    ${assignee ? `<span>👤 ${assignee}</span>` : '<span style="color:var(--warning)">⚠️ Ижрочи тайинланмаган</span>'}
+                    ${comments.length ? `<span>💬 ${comments.length}</span>` : ''}
+                    ${days !== null && task.status !== 'bajarildi' ? `<span style="color:${isOverdue ? 'var(--danger)' : days <= 3 ? 'var(--warning)' : 'var(--text-muted)'}; font-weight:600">${isOverdue ? Math.abs(days) + ' ' + t('tasks.daysOverdue') : days + ' ' + t('tasks.daysLeft')}</span>` : ''}
+                </div>
+                ${execPct > 0 || task.executionNote ? `<div style="margin-top:6px;display:flex;align-items:center;gap:8px">
+                    ${execPct > 0 ? `<div style="flex:1;max-width:120px;height:6px;border-radius:3px;background:rgba(180,140,100,0.1);overflow:hidden"><div style="height:100%;width:${execPct}%;background:${execPct >= 100 ? 'var(--success)' : 'var(--accent-primary)'};border-radius:3px;transition:width 0.3s"></div></div><span style="font-size:0.75rem;color:var(--text-muted)">${execPct}%</span>` : ''}
+                    ${task.executionNote ? `<span style="font-size:0.75rem;color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px" title="${task.executionNote.replace(/"/g, '&quot;')}">📝 ${task.executionNote.slice(0, 40)}${task.executionNote.length > 40 ? '...' : ''}</span>` : ''}
+                </div>` : ''}
+                ${lastComment ? `<div style="margin-top:4px;font-size:0.75rem;color:var(--text-muted);font-style:italic">💬 ${lastComment.author}: ${lastComment.text.slice(0, 50)}${lastComment.text.length > 50 ? '...' : ''}</div>` : ''}
+            </div>
+        </div>`;
     }).join('');
 }
 
@@ -96,19 +136,45 @@ async function openProdTaskDetail(taskId) {
         `<option value="${s}" ${task.status === s ? 'selected' : ''}>${t('status.' + s)}</option>`
     ).join('');
 
+    const execPct = task.executionPct || 0;
+    const comments = task.comments || [];
+    const commentsHtml = comments.length ? comments.map(c => `
+        <div style="padding:8px 10px;background:rgba(180,140,100,0.05);border-radius:8px;margin-bottom:6px;border-left:3px solid var(--accent-primary)">
+            <div style="display:flex;justify-content:space-between;font-size:0.75rem;color:var(--text-muted);margin-bottom:4px">
+                <span style="font-weight:600">👤 ${c.author}</span>
+                <span>${new Date(c.date).toLocaleString('uz')}</span>
+            </div>
+            <div style="font-size:0.85rem;color:var(--text-primary)">${c.text}</div>
+        </div>
+    `).join('') : '<div style="color:var(--text-muted);font-size:0.82rem;text-align:center;padding:8px">Изоҳлар ҳали йўқ</div>';
+
     openModal('📋 ' + task.name, `
         <div style="display:flex;flex-direction:column;gap:14px">
-            <div>
-                <label style="font-weight:600;font-size:0.85rem;color:var(--text-muted);margin-bottom:4px;display:block">📊 Ижро ҳолати</label>
-                <select id="prodTaskStatus" class="form-input">${statusOptions}</select>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                <div>
+                    <label style="font-weight:600;font-size:0.85rem;color:var(--text-muted);margin-bottom:4px;display:block">📊 Ижро ҳолати</label>
+                    <select id="prodTaskStatus" class="form-input">${statusOptions}</select>
+                </div>
+                <div>
+                    <label style="font-weight:600;font-size:0.85rem;color:var(--text-muted);margin-bottom:4px;display:block">👤 Ижрочи (тайинлаш)</label>
+                    <select id="prodTaskAssignee" class="form-input">${usersHtml}</select>
+                </div>
             </div>
             <div>
-                <label style="font-weight:600;font-size:0.85rem;color:var(--text-muted);margin-bottom:4px;display:block">👤 Ижрочи (тайинлаш)</label>
-                <select id="prodTaskAssignee" class="form-input">${usersHtml}</select>
+                <label style="font-weight:600;font-size:0.85rem;color:var(--text-muted);margin-bottom:4px;display:block">📈 Бажарилган фоиз: <span id="pctLabel" style="color:var(--accent-primary);font-weight:800">${execPct}%</span></label>
+                <input type="range" id="prodTaskPct" min="0" max="100" step="5" value="${execPct}" style="width:100%;accent-color:var(--accent-primary)" oninput="document.getElementById('pctLabel').textContent=this.value+'%'">
             </div>
             <div>
                 <label style="font-weight:600;font-size:0.85rem;color:var(--text-muted);margin-bottom:4px;display:block">📝 Ижро бўйича изоҳ</label>
-                <textarea id="prodTaskNote" class="form-input" rows="3" placeholder="Бажарилган ишлар, натижалар...">${task.executionNote || ''}</textarea>
+                <textarea id="prodTaskNote" class="form-input" rows="2" placeholder="Бажарилган ишлар, натижалар...">${task.executionNote || ''}</textarea>
+            </div>
+            <div>
+                <label style="font-weight:600;font-size:0.85rem;color:var(--text-muted);margin-bottom:6px;display:block">💬 Изоҳлар тарихи (${comments.length})</label>
+                <div id="prodCommentsSection" style="max-height:150px;overflow-y:auto;margin-bottom:6px">${commentsHtml}</div>
+                <div style="display:flex;gap:6px">
+                    <input id="prodNewComment" class="form-input" placeholder="Янги изоҳ ёзинг..." style="flex:1" onkeydown="if(event.key==='Enter')addProdComment('${task.id}')">
+                    <button class="btn-primary" onclick="addProdComment('${task.id}')" style="white-space:nowrap">💬 Қўшиш</button>
+                </div>
             </div>
             <div style="display:flex;gap:10px;font-size:0.82rem;color:var(--text-muted)">
                 <span>📅 Муддат: ${task.deadline || '—'}</span>
@@ -123,6 +189,30 @@ async function openProdTaskDetail(taskId) {
     `);
 }
 
+function addProdComment(taskId) {
+    const input = document.getElementById('prodNewComment');
+    const text = (input ? input.value : '').trim();
+    if (!text) return;
+
+    const tasks = loadData(STORAGE_KEYS.tasks);
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+
+    if (!task.comments) task.comments = [];
+    task.comments.push({
+        id: genId(),
+        author: _authUser.name,
+        authorId: _authUser.id,
+        text: text,
+        date: new Date().toISOString()
+    });
+    saveData(STORAGE_KEYS.tasks, tasks);
+
+    // Refresh the modal
+    openProdTaskDetail(taskId);
+    showToast('💬 Изоҳ қўшилди');
+}
+
 function saveProdTaskDetail(taskId) {
     const tasks = loadData(STORAGE_KEYS.tasks);
     const task = tasks.find(t => t.id === taskId);
@@ -132,12 +222,19 @@ function saveProdTaskDetail(taskId) {
     const assigneeId = document.getElementById('prodTaskAssignee').value;
     const assigneeName = document.getElementById('prodTaskAssignee').selectedOptions[0]?.text.replace(/ \(.*\)$/, '') || '';
     const note = document.getElementById('prodTaskNote').value;
+    const pct = parseInt(document.getElementById('prodTaskPct').value) || 0;
 
     task.status = newStatus;
     task.assignedTo = assigneeId || task.assignedTo;
     task.assigneeName = assigneeName;
     task.executionNote = note;
+    task.executionPct = pct;
     task.lastUpdated = new Date().toISOString();
+
+    // Auto-set 100% if status is 'bajarildi'
+    if (newStatus === 'bajarildi' && pct < 100) {
+        task.executionPct = 100;
+    }
 
     saveData(STORAGE_KEYS.tasks, tasks);
     closeModal();
